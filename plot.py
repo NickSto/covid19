@@ -14,10 +14,10 @@ DESCRIPTION = """Plot cases over time."""
 def make_argparser():
   parser = argparse.ArgumentParser(add_help=False, description=DESCRIPTION)
   options = parser.add_argument_group('Options')
-  options.add_argument('country', metavar='Country', nargs='?',
+  options.add_argument('countries', metavar='Country', nargs='*',
     type=lambda c: parse.Translations.get(c,c),
     help='Nation')
-  options.add_argument('-r', '--region', metavar='Region',
+  options.add_argument('-r', '--regions', metavar='Region', action='append', default=[],
     type=lambda r: parse.Translations.get(r,r),
     help='State, Province, etc.')
   options.add_argument('-v', '--invert', action='store_true',
@@ -42,29 +42,38 @@ def main(argv):
 
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
-  if args.region and args.country:
-    location = f'{args.region}, {args.country}'
-  elif args.country:
-    location = args.country
-  elif args.region:
-    location = args.region
-  else:
-    location = 'World'
+  locations = args.regions + args.countries
+  if len(locations) == 0:
+    locations_str = 'World'
+  elif len(locations) == 1:
+    locations_str = locations[0]
+  elif len(locations) == 2:
+    locations_str = '{0} and {1}'.format(*locations)
+  elif len(locations) >= 3:
+    locations_str = ', '.join(locations[:-1]) + ', and ' + locations[-1]
   if args.invert:
-    title = 'COVID-19 cases outside of '+location
+    title = 'COVID-19 cases outside of '+locations_str
   else:
-    title = location+' COVID-19 cases'
+    title = locations_str+' COVID-19 cases'
 
   now = int(time.time())
   cmd = (
-    'scatterplot.py', '--unix-time', 'x', '--date', '--x-range', '1579669200', str(now),
-    '--y-label', 'Total Cases', '--title', title
+    'scatterplot.py', '--tab', '--x-field', '1', '--y-field', '2', '--tag-field', '3',
+    '--unix-time', 'x', '--date', '--x-range', '1579669200', str(now), '--y-label', 'Total Cases',
+    '--title', title
   )
   process = subprocess.Popen(cmd, stdin=subprocess.PIPE, encoding='utf8')
 
+  parser = parse.get_series(parse.DailiesDir, args.regions, args.countries, args.invert)
+
+  if args.invert:
+    location_label = 'not '+locations_str.replace('and', 'or')
+
   count = 0
-  for timestamp, total in parse.get_series(parse.DailiesDir, args.region, args.country, args.invert):
-    process.stdin.write(f'{timestamp}\t{total}\n')
+  for timestamp, total, location in parser:
+    if location is None and args.invert:
+      location = location_label
+    process.stdin.write(f'{timestamp}\t{total}\t{location}\n')
     count += 1
 
   if count == 0:
