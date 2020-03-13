@@ -9,25 +9,10 @@ import sys
 assert sys.version_info.major >= 3, 'Python 3 required'
 
 PlaceStatus = collections.namedtuple(
-  'PlaceStatus', ('region', 'country', 'confirmed', 'deaths', 'recovered', 'lat', 'lon')
+  'PlaceStatus', ('locality', 'region', 'country', 'confirmed', 'deaths', 'recovered', 'lat', 'lon')
 )
 ScriptDir = pathlib.Path(__file__).resolve().parent
 DailiesDir = ScriptDir/'csse_covid_19_data/csse_covid_19_daily_reports'
-Translations = {
-  'District of Columbia': 'DC',
-  'Mainland China': 'China',
-  'Iran (Islamic Republic of)': 'Iran',
-  'Republic of Korea': 'South Korea',
-  'Korea, South': 'South Korea',
-  'Britain': 'UK',
-  'United Kingdom': 'UK',
-  'United States': 'US',
-  'Hong Kong SAR': 'Hong Kong',
-  'Taipei and environs': 'Taiwan',
-  'Taiwan*': 'Taiwan',
-  'occupied Palestinian territory': 'Palestine',
-  'Russian Federation': 'Russia',
-}
 DESCRIPTION = """Get the daily totals for any region."""
 
 
@@ -38,6 +23,8 @@ def make_argparser():
     help='Nation')
   options.add_argument('-r', '--region', metavar='Region', type=lambda r: Translations.get(r,r),
     help='State, Province, etc.')
+  options.add_argument('-v', '--invert', action='store_true',
+    help='Select all locations *not* matching the specified one.')
   options.add_argument('-h', '--help', action='help',
     help='Print this argument help text and exit.')
   logs = parser.add_argument_group('Logging')
@@ -58,22 +45,31 @@ def main(argv):
 
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
-  for timestamp, total in get_series(DailiesDir, args.region, args.country):
+  count = 0
+  for timestamp, total in get_series(DailiesDir, args.region, args.country, args.invert):
     print(timestamp, total, sep='\t')
+    count += 1
+
+  if count == 0:
+    logging.warning('No reports found for the specified location.')
 
 
-def get_series(dailies_dir, region, country):
+def get_series(dailies_dir, region, country, invert):
   for csv_path in sorted(dailies_dir.iterdir(), key=lambda path: path.name):
     if csv_path.suffix != '.csv':
       continue
     date = datetime.datetime.strptime(csv_path.stem, '%m-%d-%Y')
     total = 0
     for row in parse_csv(csv_path):
-      if country and row.country != country:
-        continue
-      if region and row.region != region:
-        continue
-      total += row.confirmed
+      matches = False
+      if region and row.region == region:
+        matches = True
+      if country and row.country == country:
+        matches = True
+      if region is None and country is None:
+        matches = True
+      if (matches and not invert) or (not matches and invert):
+        total += row.confirmed
     if total:
       yield int(date.timestamp()), total
 
@@ -81,10 +77,7 @@ def get_series(dailies_dir, region, country):
 def parse_csv(csv_path):
   with csv_path.open('rt') as csv_file:
     for row_num, row in enumerate(csv.reader(csv_file), 1):
-      if row[0]:
-        region = Translations.get(row[0], row[0])
-      else:
-        region = None
+      locality, region = parse_region(row[0])
       country = Translations.get(row[1], row[1])
       try:
         confirmed = parse_int(row[3])
@@ -102,7 +95,23 @@ def parse_csv(csv_path):
         lon = float(row[7])
       else:
         raise ValueError(f'Too few columns in {csv_path.name} on line {row_num}.')
-      yield PlaceStatus(region, country, confirmed, deaths, recovered, lat, lon)
+      yield PlaceStatus(locality, region, country, confirmed, deaths, recovered, lat, lon)
+
+
+def parse_region(raw_region):
+  fields = raw_region.split(', ')
+  if len(fields) == 1:
+    locality = None
+    if raw_region:
+      region = raw_region
+    else:
+      region = None
+  elif len(fields) == 2:
+    locality = fields[0]
+    region = RegionCodes.get(fields[1], fields[1])
+  else:
+    raise ValueError(f'Invalid region field {raw_region!r}')
+  return locality, Translations.get(region, region)
 
 
 def parse_int(raw_int):
@@ -110,6 +119,82 @@ def parse_int(raw_int):
     return 0
   else:
     return int(raw_int)
+
+
+Translations = {
+  'District of Columbia': 'DC',
+  'Mainland China': 'China',
+  'Iran (Islamic Republic of)': 'Iran',
+  'Republic of Korea': 'South Korea',
+  'Korea, South': 'South Korea',
+  'Britain': 'UK',
+  'United Kingdom': 'UK',
+  'United States': 'US',
+  'Hong Kong SAR': 'Hong Kong',
+  'Taipei and environs': 'Taiwan',
+  'Taiwan*': 'Taiwan',
+  'occupied Palestinian territory': 'Palestine',
+  'Russian Federation': 'Russia',
+}
+
+RegionCodes = {
+  'AL': 'Alabama',
+  'AK': 'Alaska',
+  'AZ': 'Arizona',
+  'AR': 'Arkansas',
+  'CA': 'California',
+  'CO': 'Colorado',
+  'CT': 'Connecticut',
+  'DE': 'Delaware',
+  'DC': 'District of Columbia',
+  'FL': 'Florida',
+  'GA': 'Georgia',
+  'HI': 'Hawaii',
+  'ID': 'Idaho',
+  'IL': 'Illinois',
+  'IN': 'Indiana',
+  'IA': 'Iowa',
+  'KS': 'Kansas',
+  'KY': 'Kentucky',
+  'LA': 'Louisiana',
+  'ME': 'Maine',
+  'MD': 'Maryland',
+  'MA': 'Massachusetts',
+  'MI': 'Michigan',
+  'MN': 'Minnesota',
+  'MS': 'Mississippi',
+  'MO': 'Missouri',
+  'MT': 'Montana',
+  'NE': 'Nebraska',
+  'NV': 'Nevada',
+  'NH': 'New Hampshire',
+  'NJ': 'New Jersey',
+  'NM': 'New Mexico',
+  'NY': 'New York',
+  'NC': 'North Carolina',
+  'ND': 'North Dakota',
+  'OH': 'Ohio',
+  'OK': 'Oklahoma',
+  'OR': 'Oregon',
+  'PA': 'Pennsylvania',
+  'RI': 'Rhode Island',
+  'SC': 'South Carolina',
+  'SD': 'South Dakota',
+  'TN': 'Tennessee',
+  'TX': 'Texas',
+  'UT': 'Utah',
+  'VT': 'Vermont',
+  'VA': 'Virginia',
+  'WA': 'Washington',
+  'WV': 'West Virginia',
+  'WI': 'Wisconsin',
+  'WY': 'Wyoming',
+  'AS': 'American Samoa',
+  'GU': 'Guam',
+  'MP': 'Northern Mariana Islands',
+  'PR': 'Puerto Rico',
+  'VI': 'U.S. Virgin Islands',
+}
 
 
 def fail(message):
