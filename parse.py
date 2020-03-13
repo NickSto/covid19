@@ -19,11 +19,13 @@ DESCRIPTION = """Get the daily totals for any region."""
 def make_argparser():
   parser = argparse.ArgumentParser(add_help=False, description=DESCRIPTION)
   options = parser.add_argument_group('Options')
-  options.add_argument('country', metavar='Country', nargs='?', type=lambda c: Translations.get(c,c),
+  options.add_argument('countries', metavar='Country', nargs='*',
+    type=lambda c: Translations.get(c,c),
     help='Nation')
-  options.add_argument('-r', '--region', metavar='Region', type=lambda r: Translations.get(r,r),
+  options.add_argument('-r', '--regions', metavar='Region', action='append', default=[],
+    type=lambda r: Translations.get(r,r),
     help='State, Province, etc.')
-  options.add_argument('-v', '--invert', action='store_true',
+  options.add_argument('-V', '--invert', action='store_true',
     help='Select all locations *not* matching the specified one.')
   options.add_argument('-h', '--help', action='help',
     help='Print this argument help text and exit.')
@@ -46,32 +48,37 @@ def main(argv):
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
   count = 0
-  for timestamp, total in get_series(DailiesDir, args.region, args.country, args.invert):
-    print(timestamp, total, sep='\t')
+  for timestamp, total, location in get_series(DailiesDir, args.regions, args.countries, args.invert):
+    print(timestamp, total, location, sep='\t')
     count += 1
 
   if count == 0:
     logging.warning('No reports found for the specified location.')
 
 
-def get_series(dailies_dir, region, country, invert):
+def get_series(dailies_dir, regions, countries, invert):
   for csv_path in sorted(dailies_dir.iterdir(), key=lambda path: path.name):
     if csv_path.suffix != '.csv':
       continue
     date = datetime.datetime.strptime(csv_path.stem, '%m-%d-%Y')
-    total = 0
+    timestamp = int(date.timestamp())
+    totals = collections.Counter()
     for row in parse_csv(csv_path):
-      matches = False
-      if region and row.region == region:
-        matches = True
-      if country and row.country == country:
-        matches = True
-      if region is None and country is None:
-        matches = True
-      if (matches and not invert) or (not matches and invert):
-        total += row.confirmed
-    if total:
-      yield int(date.timestamp()), total
+      matched = None
+      for region in regions:
+        if row.region == region:
+          matched = region
+          break
+      for country in countries:
+        if row.country == country:
+          matched = country
+          break
+      if not regions and not countries:
+        matched = 'World'
+      if (matched and not invert) or (not matched and invert):
+        totals[matched] += row.confirmed
+    for location, total in totals.items():
+      yield timestamp, total, location
 
 
 def parse_csv(csv_path):
