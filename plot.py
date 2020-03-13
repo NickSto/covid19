@@ -4,9 +4,10 @@ import logging
 import pathlib
 import subprocess
 import sys
+import time
+import parse
 assert sys.version_info.major >= 3, 'Python 3 required'
 
-ScriptDir = pathlib.Path(__file__).resolve().parent
 DESCRIPTION = """Plot cases over time."""
 
 
@@ -14,9 +15,13 @@ def make_argparser():
   parser = argparse.ArgumentParser(add_help=False, description=DESCRIPTION)
   options = parser.add_argument_group('Options')
   options.add_argument('country', metavar='Country', nargs='?',
+    type=lambda c: parse.Translations.get(c,c),
     help='Nation')
   options.add_argument('-r', '--region', metavar='Region',
+    type=lambda r: parse.Translations.get(r,r),
     help='State, Province, etc.')
+  options.add_argument('-v', '--invert', action='store_true',
+    help='Select all locations *not* matching the specified one.')
   options.add_argument('-h', '--help', action='help',
     help='Print this argument help text and exit.')
   logs = parser.add_argument_group('Logging')
@@ -25,7 +30,7 @@ def make_argparser():
   volume = logs.add_mutually_exclusive_group()
   volume.add_argument('-q', '--quiet', dest='volume', action='store_const', const=logging.CRITICAL,
     default=logging.WARNING)
-  volume.add_argument('-v', '--verbose', dest='volume', action='store_const', const=logging.INFO)
+  volume.add_argument('-V', '--verbose', dest='volume', action='store_const', const=logging.INFO)
   volume.add_argument('-D', '--debug', dest='volume', action='store_const', const=logging.DEBUG)
   return parser
 
@@ -38,26 +43,32 @@ def main(argv):
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
   if args.region and args.country:
-    title = f'{args.region}, {args.country}'
+    location = f'{args.region}, {args.country}'
   elif args.country:
-    title = args.country
+    location = args.country
   elif args.region:
-    title = args.region
+    location = args.region
   else:
-    title = 'World'
-  title += ' COVID-19 Cases'
+    location = 'World'
+  if args.invert:
+    title = 'COVID-19 cases outside of '+location
+  else:
+    title = location+' COVID-19 cases'
 
-  parse_cmd = [ScriptDir/'parse.py']
-  if args.country:
-    parse_cmd.append(args.country)
-  if args.region:
-    parse_cmd.extend(['--region', args.region])
-  parse_proc = subprocess.Popen(parse_cmd, stdout=subprocess.PIPE, encoding='utf8')
-  plot_cmd = (
-    'scatterplot.py', '--unix-time', 'x', '--date', '--y-label', 'Total Cases', '--title', title
+  now = int(time.time())
+  cmd = (
+    'scatterplot.py', '--unix-time', 'x', '--date', '--x-range', '1579669200', str(now),
+    '--y-label', 'Total Cases', '--title', title
   )
-  plot_proc = subprocess.Popen(plot_cmd, stdin=parse_proc.stdout, encoding='utf8')
-  parse_proc.stdout.close()
+  process = subprocess.Popen(cmd, stdin=subprocess.PIPE, encoding='utf8')
+
+  count = 0
+  for timestamp, total in parse.get_series(parse.DailiesDir, args.region, args.country, args.invert):
+    process.stdin.write(f'{timestamp}\t{total}\n')
+    count += 1
+
+  if count == 0:
+    logging.warning('No reports found for the specified location.')
 
 
 def fail(message):
