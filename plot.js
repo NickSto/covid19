@@ -14,6 +14,12 @@ function covidMain() {
       function() {appendData(this, dayEntry);}
     );
   }
+
+  const addCountryElem = document.getElementById('add-country');
+  addCountryElem.addEventListener('click', addCountryInput);
+  addCountryInput();
+  const plotBtnElem = document.getElementById('plot-btn');
+  plotBtnElem.addEventListener('click', plot);
 }
 
 function appendData(xhr, dayEntry) {
@@ -25,7 +31,7 @@ function appendData(xhr, dayEntry) {
     dayEntry.status = 'failed';
   }
   if (isDoneLoading(data)) {
-    useData(data);
+    plotCountries(data, ['World']);
   }
 }
 
@@ -38,22 +44,19 @@ function isDoneLoading(data) {
   return true;
 }
 
-function useData(data) {
-
+function plotCountries(data, countries) {
   let plotData = [];
 
-  for (let country of ['Italy', 'South Korea']) {
+  for (let country of countries) {
     let [dates, counts] = getPlaceSeries(data, country);
     plotData.push({name:country, x:dates, y:counts});
   }
 
-  let waitElem = document.getElementById('waiting');
-  let loadElem = document.getElementById('loaded');
-  waitElem.style.display = 'none';
-  loadElem.style.display = null;
+  const plotTitleElem = document.getElementById('plot-title');
+  let plotTitle = countries.join(', ')+' COVID-19 infections';
+  plotTitleElem.textContent = plotTitle;
 
-  let plotContainer = document.getElementById('plot-container');
-
+  const plotContainer = document.getElementById('plot-container');
   Plotly.newPlot(plotContainer, plotData, {margin: {t:0}});
 }
 
@@ -66,7 +69,7 @@ function getPlaceSeries(data, country) {
     }
     let total = null;
     for (let row of dayEntry.data) {
-      if (row.country === country && row.confirmed !== null) {
+      if ((country === 'World' || row.country === country) && row.confirmed !== null) {
         if (total === null) {
           total = 0;
         }
@@ -151,6 +154,43 @@ function getDates() {
   }
   return dates;
 }
+
+// UI //
+
+function plot(event) {
+  if (typeof event !== 'undefined') {
+    event.preventDefault();
+  }
+  let countries = getEnteredCountries();
+  plotCountries(data, countries);
+}
+
+function addCountryInput(event) {
+  if (typeof event !== 'undefined') {
+    event.preventDefault();
+  }
+  const countryListElem = document.getElementById('country-list');
+  let countryElem = document.createElement('input');
+  countryElem.type = 'text';
+  countryElem.style.display = 'block';
+  countryElem.placeholder = 'Italy, Germany, etc.';
+  countryListElem.appendChild(countryElem);
+}
+
+function getEnteredCountries() {
+  let countries = [];
+  const countryListElem = document.getElementById('country-list');
+  for (let countryElem of countryListElem.children) {
+    let country = countryElem.value;
+    if (TRANSLATIONS[country]) {
+      country = TRANSLATIONS[country];
+    }
+    countries.push(country);
+  }
+  return countries;
+}
+
+// Data and init //
 
 const TRANSLATIONS = {
   'District of Columbia': 'DC',

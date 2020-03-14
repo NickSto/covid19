@@ -1,21 +1,43 @@
 <!DOCTYPE html>
 <html lang="en">
+
   <head>
     <meta charset="utf-8">
     <meta http-equiv="X-UA-Compatible" content="IE=edge">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Plot latest COVID-19 data - nstoler.com</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" crossorigin="anonymous" integrity="sha256-916EbMg70RQy9LHiGkXzG8hSg9EdNy97GazNG/aiY1w=">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
     <!-- From https://github.com/okfn/csv.js/ -->
     <script src="lib/csv.min.js"></script>
   </head>
+
   <body>
-    <div id="waiting">
-      <h2>Loading..</h2>
+
+    <div id="main" class="container-fluid">
+      <div id="title">
+        <h1 style="text-align: center">COVID-19 Infections</h1>
+      </div>
+      <form>
+        <p>Choose countries to compare:</p>
+        <div id="country-list">
+        </div>
+        <button id="add-country" style="display: block" class="btn btn-default" type="text">
+          Add country
+        </button>
+        <button id="plot-btn" style="display: block" class="btn btn-default" type="submit">
+          Plot!
+        </button>
+      </form>
+      <div>
+        <h2 style="text-align: center" id="plot-title">Loading..</h2>
+      </div>
+      <div id="plot-container" style="width:800px;height:800px;"></div>
     </div>
-    <div id="loaded" style="display: none">
-      <h2>Here's the plot</h2>
-    </div>
-    <div id="plot-container" style="width:800px;height:800px;"></div>
-    <script src="plot.js"></script>
+
+    <footer>
+      <script src="plot.js"></script>
+    </footer>
+
   </body>
 </html>
