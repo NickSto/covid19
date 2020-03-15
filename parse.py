@@ -11,14 +11,14 @@ assert sys.version_info.major >= 3, 'Python 3 required'
 PlaceStatus = collections.namedtuple(
   'PlaceStatus', ('locality', 'region', 'country', 'confirmed', 'deaths', 'recovered', 'lat', 'lon')
 )
-ScriptDir = pathlib.Path(__file__).resolve().parent
-DailiesDir = ScriptDir/'csse_covid_19_data/csse_covid_19_daily_reports'
 DESCRIPTION = """Get the daily totals for any region."""
 
 
 def make_argparser():
   parser = argparse.ArgumentParser(add_help=False, description=DESCRIPTION)
   options = parser.add_argument_group('Options')
+  options.add_argument('dailies_dir', type=pathlib.Path,
+    help='Path to directory containing daily case summary csvs.')
   options.add_argument('countries', metavar='Country', nargs='*',
     type=lambda c: Translations.get(c,c),
     help='Nation')
@@ -47,8 +47,13 @@ def main(argv):
 
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
+  if not args.dailies_dir.is_dir():
+    fail(f'Dailies directory {str(args.dailies_dir)!r} not found or is not a directory.')
+
+  parser = get_series(args.dailies_dir, args.regions, args.countries, args.invert)
+
   count = 0
-  for timestamp, total, location in get_series(DailiesDir, args.regions, args.countries, args.invert):
+  for timestamp, total, location in parser:
     print(timestamp, total, location, sep='\t')
     count += 1
 

@@ -14,6 +14,8 @@ DESCRIPTION = """Plot cases over time."""
 def make_argparser():
   parser = argparse.ArgumentParser(add_help=False, description=DESCRIPTION)
   options = parser.add_argument_group('Options')
+  options.add_argument('dailies_dir', type=pathlib.Path,
+    help='Path to directory containing daily case summary csvs.')
   options.add_argument('countries', metavar='Country', nargs='*',
     type=lambda c: parse.Translations.get(c,c),
     help='Nation')
@@ -42,6 +44,9 @@ def main(argv):
 
   logging.basicConfig(stream=args.log, level=args.volume, format='%(message)s')
 
+  if not args.dailies_dir.is_dir():
+    fail(f'Dailies directory {str(args.dailies_dir)!r} not found or is not a directory.')
+
   locations = args.regions + args.countries
   if len(locations) == 0:
     locations_str = 'World'
@@ -64,7 +69,7 @@ def main(argv):
   )
   process = subprocess.Popen(cmd, stdin=subprocess.PIPE, encoding='utf8')
 
-  parser = parse.get_series(parse.DailiesDir, args.regions, args.countries, args.invert)
+  parser = parse.get_series(args.dailies_dir, args.regions, args.countries, args.invert)
 
   if args.invert:
     location_label = 'not '+locations_str.replace('and', 'or')
