@@ -24,7 +24,7 @@ function covidMain() {
 
 function appendData(xhr, dayEntry) {
   if (xhr.status == 200) {
-    let dailyDataRaw = CSV.parse(xhr.responseText);
+    let dailyDataRaw = Plotly.d3.csv.parseRows(xhr.responseText);
     dayEntry.data = processData(dailyDataRaw);
     dayEntry.status = 'loaded';
   } else {
@@ -96,18 +96,18 @@ function processData(rawTable) {
   let rowNum = 0;
   for (let row of rawTable) {
     rowNum++;
-    let region = row[0];
-    let country = row[1];
-    let confirmed = row[3];
-    let deaths = row[4];
-    let recovered = row[5];
+    let region = parseStr(row[0]);
+    let country = parseStr(row[1]);
+    let confirmed = strToInt(row[3]);
+    let deaths = strToInt(row[4]);
+    let recovered = strToInt(row[5]);
     if (TRANSLATIONS[region]) {
       region = TRANSLATIONS[region];
     }
     if (TRANSLATIONS[country]) {
       country = TRANSLATIONS[country];
     }
-    if (typeof confirmed === 'string') {
+    if (isNaN(confirmed)) {
       if (rowNum !== 1) {
         console.error(`Invalid 'Confirmed' number on row ${rowNum}: ${confirmed} (updated ${row[2]})`);
       }
@@ -118,6 +118,22 @@ function processData(rawTable) {
     })
   }
   return table;
+}
+
+function parseStr(rawStr) {
+  if (rawStr === '') {
+    return null;
+  } else {
+    return rawStr;
+  }
+}
+
+function strToInt(intStr) {
+  if (intStr === '') {
+    return null;
+  } else {
+    return parseInt(intStr);
+  }
 }
 
 function getDates() {
