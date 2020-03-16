@@ -53,11 +53,15 @@ function plotCountries(data, countries) {
 
   for (let country of countries) {
     let [dates, counts] = getPlaceSeries(data, country);
-    plotData.push({name:country, x:dates, y:counts});
+    if (counts.length > 0) {
+      plotData.push({name:country, x:dates, y:counts});
+    } else {
+      console.error(`counts.length === ${counts.length} for ${country}`);
+    }
   }
 
   const plotTitleElem = document.getElementById('plot-title');
-  let plotTitle = countries.join(', ')+' COVID-19 infections';
+  let plotTitle = plotData.map(d => d.name).join(', ')+' COVID-19 infections';
   plotTitleElem.textContent = plotTitle;
 
   const plotContainer = document.getElementById('plot-container');
