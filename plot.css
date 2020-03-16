@@ -7,6 +7,12 @@
   display: block;
 }
 
+/* For phones, use a smaller plot. */
+#plot-container {
+  width: 95%;
+  height: 450px;
+}
+
 
 /* For tablets and larger, use a bigger area for the plot. */
 @media (min-width: 760px) {
@@ -14,10 +20,4 @@
     width:  90%;
     height: 700px;
   }
-}
-
-/* For phones, use a smaller plot. */
-#plot-container {
-  width: 95%;
-  height: 450px;
 }
