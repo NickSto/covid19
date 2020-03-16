@@ -8,33 +8,34 @@
     <title>Plot latest COVID-19 data - nstoler.com</title>
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" crossorigin="anonymous" integrity="sha256-916EbMg70RQy9LHiGkXzG8hSg9EdNy97GazNG/aiY1w=">
     <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+    <link rel="stylesheet" href="plot.css?via=html">
   </head>
 
   <body>
 
     <div id="main" class="container-fluid">
-      <div id="title">
-        <h1 style="text-align: center">COVID-19 Infections</h1>
+      <div>
+        <h1 id="title">COVID-19 Infections</h1>
       </div>
       <form>
         <p>Choose countries to compare:</p>
         <div id="country-list">
         </div>
-        <button id="add-country" style="display: block" class="btn btn-default" type="text">
+        <button id="add-country" class="btn btn-default" type="text">
           Add country
         </button>
-        <button id="plot-btn" style="display: block" class="btn btn-default" type="submit">
+        <button id="plot-btn" class="btn btn-default" type="submit">
           Plot!
         </button>
       </form>
       <div>
-        <h2 style="text-align: center" id="plot-title">Loading..</h2>
+        <h2 id="plot-title">Loading..</h2>
       </div>
-      <div id="plot-container" style="width:800px;height:800px;"></div>
+      <div id="plot-container"></div>
     </div>
 
     <footer>
-      <script src="plot.js"></script>
+      <script src="plot.js?via=html"></script>
     </footer>
 
   </body>

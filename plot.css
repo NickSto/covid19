@@ -1,0 +1,13 @@
+
+#title, #plot-title {
+  text-align: center;
+}
+
+#add-country, #plot-btn {
+  display: block;
+}
+
+#plot-container {
+  width:  800px;
+  height: 800px;
+}
