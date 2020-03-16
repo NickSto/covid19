@@ -9,7 +9,7 @@ function initCovid() {
   addCountryElem.addEventListener('click', addCountryInput);
   addCountryInput();
   const plotBtnElem = document.getElementById('plot-btn');
-  plotBtnElem.addEventListener('click', function(event) {plot(event, data);});
+  plotBtnElem.addEventListener('click', event => plot(event, data));
 }
 
 function loadData(data) {
@@ -20,7 +20,7 @@ function loadData(data) {
   for (let dayEntry of data) {
     makeRequest(
       `${DATA_URL_BASE}/${dayEntry.name}.csv`,
-      function() {appendData(this, data, dayEntry);}
+      event => appendData(event.target, data, dayEntry)
     );
   }
 }
@@ -31,6 +31,7 @@ function appendData(xhr, data, dayEntry) {
     dayEntry.data = processData(dailyDataRaw);
     dayEntry.status = 'loaded';
   } else {
+    console.error(`Request for ${dayEntry.name}.csv failed: ${xhr.status}: ${xhr.statusText}`)
     dayEntry.status = 'failed';
   }
   if (isDoneLoading(data)) {
