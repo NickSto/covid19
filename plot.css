@@ -7,14 +7,13 @@
   display: block;
 }
 
-/* For phones, use a smaller plot. */
+/* For phones, use a shorter plot, but take up more of the horizontal space. */
 #plot-container {
-  width: 95%;
+  width: 100%;
   height: 450px;
 }
 
-
-/* For tablets and larger, use a bigger area for the plot. */
+/* For tablets and larger, use a taller plot, but leave more margins on the sides. */
 @media (min-width: 760px) {
   #plot-container {
     width:  90%;

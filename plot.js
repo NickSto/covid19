@@ -1,5 +1,10 @@
 
 const DATA_URL_BASE = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports';
+const PLOT_LAYOUT = {
+  margin: {t:0, b:0, l:0, r:0},
+  yaxis: {automargin: true},
+  xaxis: {automargin: true},
+};
 
 function initCovid() {
   let data = [];
@@ -65,7 +70,7 @@ function plotCountries(data, countries) {
   plotTitleElem.textContent = plotTitle;
 
   const plotContainer = document.getElementById('plot-container');
-  Plotly.newPlot(plotContainer, plotData, {margin: {t:0}});
+  Plotly.newPlot(plotContainer, plotData, PLOT_LAYOUT);
 }
 
 function getPlaceSeries(data, country) {
