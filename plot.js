@@ -1,28 +1,31 @@
 
-let data = [];
 const DATA_URL_BASE = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports';
 
-function covidMain() {
-  for (let dayEntry of getDates()) {
-    dayEntry.status = 'loading';
-    data.push(dayEntry);
-  }
-
-  for (let dayEntry of data) {
-    makeRequest(
-      `${DATA_URL_BASE}/${dayEntry.name}.csv`,
-      function() {appendData(this, dayEntry);}
-    );
-  }
+function initCovid() {
+  let data = [];
+  loadData(data);
 
   const addCountryElem = document.getElementById('add-country');
   addCountryElem.addEventListener('click', addCountryInput);
   addCountryInput();
   const plotBtnElem = document.getElementById('plot-btn');
-  plotBtnElem.addEventListener('click', plot);
+  plotBtnElem.addEventListener('click', function(event) {plot(event, data);});
 }
 
-function appendData(xhr, dayEntry) {
+function loadData(data) {
+  for (let dayEntry of getDates()) {
+    dayEntry.status = 'loading';
+    data.push(dayEntry);
+  }
+  for (let dayEntry of data) {
+    makeRequest(
+      `${DATA_URL_BASE}/${dayEntry.name}.csv`,
+      function() {appendData(this, data, dayEntry);}
+    );
+  }
+}
+
+function appendData(xhr, data, dayEntry) {
   if (xhr.status == 200) {
     let dailyDataRaw = Plotly.d3.csv.parseRows(xhr.responseText);
     dayEntry.data = processData(dailyDataRaw);
@@ -173,7 +176,7 @@ function getDates() {
 
 // UI //
 
-function plot(event) {
+function plot(event, data) {
   if (typeof event !== 'undefined') {
     event.preventDefault();
   }
@@ -224,4 +227,4 @@ const TRANSLATIONS = {
   'Russian Federation': 'Russia',
 };
 
-window.addEventListener('load', covidMain, false);
+window.addEventListener('load', initCovid, false);
