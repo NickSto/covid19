@@ -14,7 +14,7 @@ function initCovid() {
   // Load constants from external file.
   // When doing local testing (via file://), CORS will normally block this request.
   // In Firefox you can allow it by toggling `privacy.file_unique_origin`.
-  makeRequest('constants.json', initConstants, 'json');
+  makeRequest('constants.json?via=js', initConstants, 'json');
 
   loadData(data);
 
