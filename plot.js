@@ -73,13 +73,13 @@ function plotCountries(data, countries) {
   let options = getOptions();
 
   for (let country of countries) {
-    let [dates, counts] = getPlaceSeries(data, country);
+    let [dates, counts] = getPlaceSeries(data, country.toLowerCase());
     if (counts.length <= 0) {
       console.error(`counts.length === ${counts.length} for ${country}`);
       continue;
     }
     if (options.perCapita) {
-      counts = divideByPop(counts, country);
+      counts = divideByPop(counts, country.toLowerCase());
       if (!counts) {
         continue;
       }
@@ -109,7 +109,7 @@ function getPlaceSeries(data, country) {
     }
     let total = null;
     for (let row of dayEntry.data) {
-      if ((country === 'World' || row.country === country) && row.confirmed !== null) {
+      if ((country === 'world' || row.country === country) && row.confirmed !== null) {
         if (total === null) {
           total = 0;
         }
@@ -192,7 +192,7 @@ function parseStr(rawStr) {
   if (rawStr === '') {
     return null;
   } else {
-    return rawStr;
+    return rawStr.toLowerCase();
   }
 }
 
