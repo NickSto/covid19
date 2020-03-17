@@ -9,13 +9,26 @@ let TRANSLATIONS = null;
 let POPULATIONS = null;
 
 function initCovid() {
-  let data = [];
-
   // Load constants from external file.
   // When doing local testing (via file://), CORS will normally block this request.
   // In Firefox you can allow it by toggling `privacy.file_unique_origin`.
   makeRequest('constants.json?via=js', initConstants, 'json');
+}
 
+function initConstants(event) {
+  let xhr = event.target;
+  if (xhr.status == 200) {
+    let constants = xhr.response;
+    TRANSLATIONS = constants.translations;
+    POPULATIONS = constants.populations;
+    loadDataAndWireUI();
+  } else {
+    console.error(`Request for ${xhr.responseUrl} failed: ${xhr.status}: ${xhr.statusText}`);
+  }
+}
+
+function loadDataAndWireUI() {
+  let data = [];
   loadData(data);
 
   const addCountryElem = document.getElementById('add-country');
@@ -23,12 +36,6 @@ function initCovid() {
   addCountryInput();
   const plotBtnElem = document.getElementById('plot-btn');
   plotBtnElem.addEventListener('click', event => plot(event, data));
-}
-
-function initConstants(event) {
-  let constants = event.target.response;
-  TRANSLATIONS = constants.translations;
-  POPULATIONS = constants.populations;
 }
 
 function loadData(data) {
@@ -50,7 +57,7 @@ function appendData(xhr, data, dayEntry) {
     dayEntry.data = processData(dailyDataRaw);
     dayEntry.status = 'loaded';
   } else {
-    console.error(`Request for ${dayEntry.name}.csv failed: ${xhr.status}: ${xhr.statusText}`)
+    console.error(`Request for ${dayEntry.name}.csv failed: ${xhr.status}: ${xhr.statusText}`);
     dayEntry.status = 'failed';
   }
   if (isDoneLoading(data)) {
