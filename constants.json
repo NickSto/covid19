@@ -1,0 +1,33 @@
+{
+  "translations": {
+    "Mainland China": "China",
+    "Iran (Islamic Republic of)": "Iran",
+    "Republic of Korea": "South Korea",
+    "Korea, South": "South Korea",
+    "Britain": "UK",
+    "United Kingdom": "UK",
+    "United States": "US",
+    "Hong Kong SAR": "Hong Kong",
+    "Taipei and environs": "Taiwan",
+    "Taiwan*": "Taiwan",
+    "occupied Palestinian territory": "Palestine",
+    "Russian Federation": "Russia",
+    "Republic of Ireland": "Ireland",
+    "Viet Nam": "Vietnam",
+    "Macao SAR": "Macau",
+    "Republic of Moldova": "Moldova",
+    "St. Martin": "Saint Martin",
+    "Czechia": "Czech Republic",
+    "Holy See": "Vatican City",
+    "Congo (Kinshasa)": "DR Congo",
+    "DRC": "DR Congo",
+    "Congo (Brazzaville)": "Congo",
+    "Congo Republic": "Congo",
+    "Republic of the Congo": "Congo",
+    "Reunion": "Réunion",
+    "Curacao": "Curaçao",
+    "Cote d'Ivoire": "Ivory Coast",
+    " Azerbaijan": "Azerbaijan",
+    "District of Columbia": "DC"
+  }
+}

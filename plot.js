@@ -5,9 +5,16 @@ const PLOT_LAYOUT = {
   yaxis: {automargin: true},
   xaxis: {automargin: true},
 };
+let TRANSLATIONS = null;
 
 function initCovid() {
   let data = [];
+
+  // Load constants from external file.
+  // When doing local testing (via file://), CORS will normally block this request.
+  // In Firefox you can allow it by toggling `privacy.file_unique_origin`.
+  makeRequest('constants.json', initConstants, 'json');
+
   loadData(data);
 
   const addCountryElem = document.getElementById('add-country');
@@ -15,6 +22,11 @@ function initCovid() {
   addCountryInput();
   const plotBtnElem = document.getElementById('plot-btn');
   plotBtnElem.addEventListener('click', event => plot(event, data));
+}
+
+function initConstants(event) {
+  let constants = event.target.response;
+  TRANSLATIONS = constants.translations;
 }
 
 function loadData(data) {
@@ -97,8 +109,26 @@ function getPlaceSeries(data, country) {
   return [dates, counts];
 }
 
-function makeRequest(url, callback) {
+function getCountryList(data) {
+  let countries = {};
+  for (let dayEntry of data) {
+    if (dayEntry.status !== 'loaded') {
+      continue;
+    }
+    for (let row of dayEntry.data) {
+      if (row.country) {
+        if (!countries[row.country]) {
+          countries[row.country] = 1;
+        }
+      }
+    }
+  }
+  return Object.keys(countries);
+}
+
+function makeRequest(url, callback, respType='') {
   let request = new XMLHttpRequest();
+  request.responseType = respType;
   request.addEventListener('loadend', callback);
   request.open('GET', url);
   request.send();
@@ -114,9 +144,6 @@ function processData(rawTable) {
     let confirmed = strToInt(row[3]);
     let deaths = strToInt(row[4]);
     let recovered = strToInt(row[5]);
-    if (TRANSLATIONS[region]) {
-      region = TRANSLATIONS[region];
-    }
     if (TRANSLATIONS[country]) {
       country = TRANSLATIONS[country];
     }
@@ -219,22 +246,6 @@ function getEnteredCountries() {
   return countries;
 }
 
-// Data and init //
-
-const TRANSLATIONS = {
-  'District of Columbia': 'DC',
-  'Mainland China': 'China',
-  'Iran (Islamic Republic of)': 'Iran',
-  'Republic of Korea': 'South Korea',
-  'Korea, South': 'South Korea',
-  'Britain': 'UK',
-  'United Kingdom': 'UK',
-  'United States': 'US',
-  'Hong Kong SAR': 'Hong Kong',
-  'Taipei and environs': 'Taiwan',
-  'Taiwan*': 'Taiwan',
-  'occupied Palestinian territory': 'Palestine',
-  'Russian Federation': 'Russia',
-};
+// init //
 
 window.addEventListener('load', initCovid, false);
