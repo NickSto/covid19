@@ -80,25 +80,10 @@ function plotCountries(data, countries) {
   let options = getOptions();
 
   for (let country of countries) {
-    let [dates, counts] = getPlaceSeries(data, country.toLowerCase());
-    if (counts.length <= 0) {
-      if (country.trim() === '') {
-        setCountryAlert(country, true);
-      } else {
-        setCountryAlert(country, false);
-      }
-      console.error(`counts.length === ${counts.length} for ${country}`);
-      continue;
-    } else {
-      setCountryAlert(country, true);
+    let countryData = getCountryData(country, data, options);
+    if (countryData) {
+      plotData.push(countryData);
     }
-    if (options.perCapita) {
-      counts = divideByPop(counts, country.toLowerCase());
-      if (!counts) {
-        continue;
-      }
-    }
-    plotData.push({name:country, x:dates, y:counts});
   }
 
   const plotTitleElem = document.getElementById('plot-title');
@@ -112,6 +97,28 @@ function plotCountries(data, countries) {
 
   const plotContainer = document.getElementById('plot-container');
   Plotly.newPlot(plotContainer, plotData, PLOT_LAYOUT);
+}
+
+function getCountryData(country, data, options) {
+  let [dates, counts] = getPlaceSeries(data, country.toLowerCase());
+  if (counts.length <= 0) {
+    if (country.trim() === '') {
+      setCountryAlert(country, true);
+    } else {
+      setCountryAlert(country, false);
+    }
+    console.error(`counts.length === ${counts.length} for ${country}`);
+    return null;
+  } else {
+    setCountryAlert(country, true);
+  }
+  if (options.perCapita) {
+    counts = divideByPop(counts, country.toLowerCase());
+    if (!counts) {
+      return null;
+    }
+  }
+  return {name:country, x:dates, y:counts}
 }
 
 function getPlaceSeries(data, country) {
