@@ -75,8 +75,15 @@ function plotCountries(data, countries) {
   for (let country of countries) {
     let [dates, counts] = getPlaceSeries(data, country.toLowerCase());
     if (counts.length <= 0) {
+      if (country.trim() === '') {
+        setCountryAlert(country, true);
+      } else {
+        setCountryAlert(country, false);
+      }
       console.error(`counts.length === ${counts.length} for ${country}`);
       continue;
+    } else {
+      setCountryAlert(country, true);
     }
     if (options.perCapita) {
       counts = divideByPop(counts, country.toLowerCase());
@@ -254,18 +261,24 @@ function addCountryInput(event) {
     event.preventDefault();
   }
   const countryListElem = document.getElementById('country-list');
-  let countryElem = document.createElement('input');
-  countryElem.type = 'text';
-  countryElem.style.display = 'block';
-  countryElem.placeholder = 'Italy, Germany, etc.';
-  countryListElem.appendChild(countryElem);
+  let countryContainerElem = document.createElement('p');
+  let countryInputElem = document.createElement('input');
+  countryInputElem.classList.add('country-input');
+  countryInputElem.type = 'text';
+  countryInputElem.placeholder = 'Italy, Germany, etc.';
+  countryContainerElem.appendChild(countryInputElem);
+  let countryAlertElem = document.createElement('span');
+  countryAlertElem.classList.add('country-alert');
+  countryAlertElem.textContent = "Couldn't find this country in the data. Try checking the spelling.";
+  countryContainerElem.appendChild(countryAlertElem);
+  countryListElem.appendChild(countryContainerElem);
 }
 
 function getEnteredCountries() {
   let countries = [];
-  const countryListElem = document.getElementById('country-list');
-  for (let countryElem of countryListElem.children) {
-    let country = countryElem.value;
+  const countryInputElems = document.getElementsByClassName('country-input');
+  for (let countryInputElem of countryInputElems) {
+    let country = countryInputElem.value;
     if (TRANSLATIONS[country]) {
       country = TRANSLATIONS[country];
     }
@@ -281,6 +294,22 @@ function getOptions() {
     options[optionElem.name] = optionElem.checked;
   }
   return options;
+}
+
+function setCountryAlert(country, valid) {
+  const countryInputElems = document.getElementsByClassName('country-input');
+  for (let countryInputElem of countryInputElems) {
+    let thisCountry = countryInputElem.value;
+    if (thisCountry === country) {
+      let countryAlertElem = countryInputElem.parentElement.querySelector('.country-alert');
+      if (valid) {
+        countryAlertElem.style.display = 'none';
+      } else {
+        countryAlertElem.style.display = 'initial';
+      }
+      return;
+    }
+  }
 }
 
 // init //

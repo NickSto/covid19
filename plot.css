@@ -3,6 +3,16 @@
   text-align: center;
 }
 
+#country-list > p {
+  margin-bottom: 3px;
+}
+
+.country-alert {
+  margin-left: 10px;
+  color: red;
+  display: none;
+}
+
 #add-country, #plot-btn {
   display: block;
 }
