@@ -6,6 +6,7 @@ const PLOT_LAYOUT = {
   xaxis: {automargin: true},
 };
 let TRANSLATIONS = null;
+let POPULATIONS = null;
 
 function initCovid() {
   let data = [];
@@ -27,6 +28,7 @@ function initCovid() {
 function initConstants(event) {
   let constants = event.target.response;
   TRANSLATIONS = constants.translations;
+  POPULATIONS = constants.populations;
 }
 
 function loadData(data) {
@@ -68,17 +70,30 @@ function isDoneLoading(data) {
 function plotCountries(data, countries) {
   let plotData = [];
 
+  let options = getOptions();
+
   for (let country of countries) {
     let [dates, counts] = getPlaceSeries(data, country);
-    if (counts.length > 0) {
-      plotData.push({name:country, x:dates, y:counts});
-    } else {
+    if (counts.length <= 0) {
       console.error(`counts.length === ${counts.length} for ${country}`);
+      continue;
     }
+    if (options.perCapita) {
+      counts = divideByPop(counts, country);
+      if (!counts) {
+        continue;
+      }
+    }
+    plotData.push({name:country, x:dates, y:counts});
   }
 
   const plotTitleElem = document.getElementById('plot-title');
-  let plotTitle = plotData.map(d => d.name).join(', ')+' COVID-19 infections';
+  let plotTitle = plotData.map(d => d.name).join(', ')
+  if (options.perCapita) {
+    plotTitle +=' COVID-19 infection rate';
+  } else {
+    plotTitle +=' COVID-19 infections';
+  }
   plotTitleElem.textContent = plotTitle;
 
   const plotContainer = document.getElementById('plot-container');
@@ -107,6 +122,19 @@ function getPlaceSeries(data, country) {
     }
   }
   return [dates, counts];
+}
+
+function divideByPop(rawCounts, country) {
+  let newCounts = [];
+  let population = POPULATIONS[country];
+  if (!population) {
+    console.error(`No population found for ${country}.`);
+    return null;
+  }
+  for (let count of rawCounts) {
+    newCounts.push(count/population);
+  }
+  return newCounts;
 }
 
 function getCountryList(data) {
@@ -244,6 +272,15 @@ function getEnteredCountries() {
     countries.push(country);
   }
   return countries;
+}
+
+function getOptions() {
+  let options = {};
+  const optionElems = document.getElementsByClassName('option');
+  for (let optionElem of optionElems) {
+    options[optionElem.name] = optionElem.checked;
+  }
+  return options;
 }
 
 // init //

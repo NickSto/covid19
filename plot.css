@@ -11,6 +11,11 @@
   margin: 5px 0;
 }
 
+#options-list p span {
+  margin-left: 5px;
+  vertical-align: text-bottom;
+}
+
 /* For tablets and larger, use a taller plot, but leave more margins on the sides. */
 #plot-container {
   width:  90%;
