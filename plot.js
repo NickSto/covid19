@@ -33,7 +33,7 @@ function loadDataAndWireUI() {
 
   const addCountryElem = document.getElementById('add-country');
   addCountryElem.addEventListener('click', addCountryInput);
-  addCountryInput();
+  addCountryInput(null, 'World');
   const plotBtnElem = document.getElementById('plot-btn');
   plotBtnElem.addEventListener('click', event => plot(event, data));
 }
@@ -263,22 +263,43 @@ function plot(event, data) {
   plotCountries(data, countries);
 }
 
-function addCountryInput(event) {
-  if (typeof event !== 'undefined') {
+function addCountryInput(event, country=null) {
+  if (typeof event !== 'undefined' && event) {
     event.preventDefault();
   }
   const countryListElem = document.getElementById('country-list');
   let countryContainerElem = document.createElement('p');
+  let countryDeleteElem = document.createElement('button');
+  countryDeleteElem.classList.add('country-delete','btn','btn-sm','btn-default');
+  countryDeleteElem.textContent = '✕';
+  countryDeleteElem.title = 'delete';
+  countryDeleteElem.addEventListener('click', deleteCountryInput);
+  countryContainerElem.appendChild(countryDeleteElem);
   let countryInputElem = document.createElement('input');
   countryInputElem.classList.add('country-input');
   countryInputElem.type = 'text';
   countryInputElem.placeholder = 'Italy, Germany, etc.';
+  if (country) {
+    countryInputElem.value = country;
+  }
   countryContainerElem.appendChild(countryInputElem);
   let countryAlertElem = document.createElement('span');
   countryAlertElem.classList.add('country-alert');
   countryAlertElem.textContent = "Couldn't find this country in the data. Try checking the spelling.";
   countryContainerElem.appendChild(countryAlertElem);
   countryListElem.appendChild(countryContainerElem);
+}
+
+function deleteCountryInput(event) {
+  if (typeof event !== 'undefined') {
+    event.preventDefault();
+  }
+  let countryDeleteElem = event.target;
+  if (!(countryDeleteElem.tagName === 'BUTTON' && countryDeleteElem.classList.contains('country-delete'))) {
+    console.error(`deleteCountryInput() called on wrong element (a ${countryDeleteElem.tagName})`);
+    return;
+  }
+  countryDeleteElem.parentElement.remove();
 }
 
 function getEnteredCountries() {
