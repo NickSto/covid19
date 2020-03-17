@@ -89,11 +89,11 @@ function plotCountries(data, countries) {
   const plotTitleElem = document.getElementById('plot-title');
   let plotTitle = plotData.map(d => d.name).join(', ')
   if (options.perCapita) {
-    plotTitle += ' COVID-19 infection rate';
+    plotTitle += ' infection rate';
   } else if (options.rates) {
-    plotTitle += ' COVID-19 infection change per day';
+    plotTitle += ' infection change per day';
   } else {
-    plotTitle += ' COVID-19 infections';
+    plotTitle += ' infections';
   }
   plotTitleElem.textContent = plotTitle;
 
@@ -101,6 +101,9 @@ function plotCountries(data, countries) {
   if (options.rates) {
     layout.yaxis.tickformat = '%';
     layout.yaxis.range = [0,1];
+  }
+  if (options.log) {
+    layout.yaxis.type = 'log';
   }
 
   const plotContainer = document.getElementById('plot-container');
