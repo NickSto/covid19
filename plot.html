@@ -28,8 +28,16 @@
         </button>
         <div id="options-list">
           <p>
-            <input class="option" type="checkbox" name="perCapita">
+            <input class="option" type="radio" name="values" value="totals" checked>
+            <span>Total infections</span>
+          </p>
+          <p>
+            <input class="option" type="radio" name="values" value="perCapita">
             <span>Infections per capita</span>
+          </p>
+          <p>
+            <input class="option" type="radio" name="values" value="rates">
+            <span>Per-day change in infections</span>
           </p>
         </div>
         <button id="plot-btn" class="btn btn-default" type="submit">

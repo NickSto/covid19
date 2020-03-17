@@ -89,14 +89,22 @@ function plotCountries(data, countries) {
   const plotTitleElem = document.getElementById('plot-title');
   let plotTitle = plotData.map(d => d.name).join(', ')
   if (options.perCapita) {
-    plotTitle +=' COVID-19 infection rate';
+    plotTitle += ' COVID-19 infection rate';
+  } else if (options.rates) {
+    plotTitle += ' COVID-19 infection change per day';
   } else {
-    plotTitle +=' COVID-19 infections';
+    plotTitle += ' COVID-19 infections';
   }
   plotTitleElem.textContent = plotTitle;
 
+  let layout = deepishCopy(PLOT_LAYOUT);
+  if (options.rates) {
+    layout.yaxis.tickformat = '%';
+    layout.yaxis.range = [0,1];
+  }
+
   const plotContainer = document.getElementById('plot-container');
-  Plotly.newPlot(plotContainer, plotData, PLOT_LAYOUT);
+  Plotly.newPlot(plotContainer, plotData, layout);
 }
 
 function getCountryData(country, data, options) {
@@ -112,13 +120,18 @@ function getCountryData(country, data, options) {
   } else {
     setCountryAlert(country, true);
   }
+  let yVals = null;
   if (options.perCapita) {
-    counts = divideByPop(counts, country.toLowerCase());
-    if (!counts) {
+    yVals = divideByPop(counts, country.toLowerCase());
+    if (!yVals) {
       return null;
     }
+  } else if (options.rates) {
+    [dates, yVals] = countsToRates(dates, counts);
+  } else {
+    yVals = counts;
   }
-  return {name:country, x:dates, y:counts}
+  return {name:country, x:dates, y:yVals}
 }
 
 function getPlaceSeries(data, country) {
@@ -143,6 +156,21 @@ function getPlaceSeries(data, country) {
     }
   }
   return [dates, counts];
+}
+
+function countsToRates(dates, counts, thres=10) {
+  let rates = [];
+  let newDates = [];;
+  for (let i = 1; i < counts.length; i++) {
+    let lastCount = counts[i-1];
+    let count = counts[i];
+    if (lastCount && lastCount >= thres) {
+      let rate = count/lastCount - 1;
+      rates.push(rate);
+      newDates.push(dates[i]);
+    }
+  }
+  return [dates, rates];
 }
 
 function divideByPop(rawCounts, country) {
@@ -260,6 +288,27 @@ function getDates() {
   return dates;
 }
 
+/* Warning: This is a very limited deep copy, basically only made for simple situations like objects
+ * with only simple values or object values.
+ * If a key exists in both `source` and `target`, it will replace the value in `target`.
+ * This includes object values, meaning this will not do any smart things like keeping keys deep in
+ * the target if they don't exist in the source.
+ */
+function deepishCopy(source, target=null) {
+  if (target === null) {
+    target = {};
+  }
+  for (let key of Object.keys(source)) {
+    let value = source[key];
+    if (typeof value === 'object') {
+      target[key] = deepishCopy(value);
+    } else {
+      target[key] = value;
+    }
+  }
+  return target;
+}
+
 // UI //
 
 function plot(event, data) {
@@ -326,7 +375,7 @@ function getOptions() {
   let options = {};
   const optionElems = document.getElementsByClassName('option');
   for (let optionElem of optionElems) {
-    options[optionElem.name] = optionElem.checked;
+    options[optionElem.value] = optionElem.checked;
   }
   return options;
 }
