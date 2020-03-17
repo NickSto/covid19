@@ -90,8 +90,12 @@ function plotCountries(data, countries) {
   let plotTitle = plotData.map(d => d.name).join(', ')
   if (options.perCapita) {
     plotTitle += ' infection rate';
+  } else if (options.diffs) {
+    plotTitle += ' new infections per day';
   } else if (options.rates) {
     plotTitle += ' infection change per day';
+  } else if (options.mortality) {
+    plotTitle += ' mortality rates';
   } else {
     plotTitle += ' infections';
   }
@@ -100,7 +104,8 @@ function plotCountries(data, countries) {
   let layout = deepishCopy(PLOT_LAYOUT);
   if (options.rates) {
     layout.yaxis.tickformat = '%';
-    layout.yaxis.range = [0,1];
+  } else if (options.mortality) {
+    layout.yaxis.tickformat = '.2p'
   }
   if (options.log) {
     layout.yaxis.type = 'log';
@@ -111,7 +116,8 @@ function plotCountries(data, countries) {
 }
 
 function getCountryData(country, data, options) {
-  let [dates, counts] = getPlaceSeries(data, country.toLowerCase());
+  let [dates, counts] = getCountryCounts(data, country.toLowerCase(), 'confirmed');
+  // If we didn't find any data, alert that the country name might be invalid.
   if (counts.length <= 0) {
     if (country.trim() === '') {
       setCountryAlert(country, true);
@@ -123,7 +129,11 @@ function getCountryData(country, data, options) {
   } else {
     setCountryAlert(country, true);
   }
+  // Apply the requested transformations.
   let yVals = null;
+  if (!options.mortality) {
+    [dates, counts] = rmNulls(dates, counts);
+  }
   if (options.perCapita) {
     yVals = divideByPop(counts, country.toLowerCase());
     if (!yVals) {
@@ -131,13 +141,19 @@ function getCountryData(country, data, options) {
     }
   } else if (options.rates) {
     [dates, yVals] = countsToRates(dates, counts);
+  } else if (options.mortality) {
+    let [mDates, deaths] = getCountryCounts(data, country.toLowerCase(), 'deaths');
+    [dates, yVals] = countsToMortality(dates, counts, deaths);
+  } else if (options.diffs) {
+    yVals = getCountDiffs(counts);
+    dates.shift();
   } else {
     yVals = counts;
   }
   return {name:country, x:dates, y:yVals}
 }
 
-function getPlaceSeries(data, country) {
+function getCountryCounts(data, country, type='confirmed') {
   let dates = [];
   let counts = [];
   for (let dayEntry of data) {
@@ -146,19 +162,29 @@ function getPlaceSeries(data, country) {
     }
     let total = null;
     for (let row of dayEntry.data) {
-      if ((country === 'world' || row.country === country) && row.confirmed !== null) {
+      if ((country === 'world' || row.country === country) && row[type] !== null) {
         if (total === null) {
           total = 0;
         }
-        total += row.confirmed;
+        total += row[type];
       }
     }
-    if (total !== null) {
-      dates.push(dayEntry.date);
-      counts.push(total);
-    }
+    dates.push(dayEntry.date);
+    counts.push(total);
   }
   return [dates, counts];
+}
+
+function rmNulls(dates, counts) {
+  let newDates = [];
+  let newCounts = [];
+  for (let i = 0; i < dates.length; i++) {
+    if (counts[i] !== null) {
+      newDates.push(dates[i]);
+      newCounts.push(counts[i]);
+    }
+  }
+  return [newDates, newCounts];
 }
 
 function countsToRates(dates, counts, thres=10) {
@@ -173,7 +199,20 @@ function countsToRates(dates, counts, thres=10) {
       newDates.push(dates[i]);
     }
   }
-  return [dates, rates];
+  return [newDates, rates];
+}
+
+function getCountDiffs(counts) {
+  // This assumes there are no null counts.
+  let diffs = [];
+  let lastCount = null;
+  for (let count of counts) {
+    if (lastCount !== null) {
+      diffs.push(count - lastCount);
+    }
+    lastCount = count;
+  }
+  return diffs;
 }
 
 function divideByPop(rawCounts, country) {
@@ -187,6 +226,21 @@ function divideByPop(rawCounts, country) {
     newCounts.push(count/population);
   }
   return newCounts;
+}
+
+function countsToMortality(dates, caseCounts, deathCounts, thres=10) {
+  let mortRates = [];
+  let newDates = [];
+  for (let i = 0; i < caseCounts.length; i++) {
+    let cases = caseCounts[i];
+    let deaths = deathCounts[i];
+    if (deaths !== null && cases !== null && cases >= thres) {
+      mortRates.push(deaths/cases);
+      newDates.push(dates[i]);
+    }
+  }
+  console.log(`newDates: ${newDates.length}, mortRates: ${mortRates.length}`);
+  return [newDates, mortRates];
 }
 
 function getCountryList(data) {
