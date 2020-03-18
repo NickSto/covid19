@@ -5,22 +5,28 @@ const PLOT_LAYOUT = {
   yaxis: {automargin: true},
   xaxis: {automargin: true},
 };
-let TRANSLATIONS = null;
-let POPULATIONS = null;
+let PLACES = null;
+let TRANSLATIONS = {};
 
 function initCovid() {
   // Load constants from external file.
   // When doing local testing (via file://), CORS will normally block this request.
   // In Firefox you can allow it by toggling `privacy.file_unique_origin`.
-  makeRequest('constants.json?via=js', initConstants, 'json');
+  makeRequest('places.json?via=js', initPlaces, 'json');
 }
 
-function initConstants(event) {
+function initPlaces(event) {
   let xhr = event.target;
   if (xhr.status == 200) {
-    let constants = xhr.response;
-    TRANSLATIONS = constants.translations;
-    POPULATIONS = constants.populations;
+    PLACES = xhr.response;
+    for (let country in PLACES) {
+      let countryData = PLACES[country];
+      if (countryData.aliases) {
+        for (let alias of countryData.aliases) {
+          TRANSLATIONS[alias] = country;
+        }
+      }
+    }
     loadDataAndWireUI();
   } else {
     console.error(`Request for ${xhr.responseUrl} failed: ${xhr.status}: ${xhr.statusText}`);
@@ -29,16 +35,17 @@ function initConstants(event) {
 
 function loadDataAndWireUI() {
   let data = [];
-  loadData(data);
+  let validCountries = {};
+  loadData(data, validCountries);
 
   const addCountryElem = document.getElementById('add-country');
   addCountryElem.addEventListener('click', addCountryInput);
   addCountryInput(null, 'World');
   const plotBtnElem = document.getElementById('plot-btn');
-  plotBtnElem.addEventListener('click', event => plot(event, data));
+  plotBtnElem.addEventListener('click', event => plot(event, data, validCountries));
 }
 
-function loadData(data) {
+function loadData(data, validCountries) {
   for (let dayEntry of getDates()) {
     dayEntry.status = 'loading';
     data.push(dayEntry);
@@ -46,12 +53,12 @@ function loadData(data) {
   for (let dayEntry of data) {
     makeRequest(
       `${DATA_URL_BASE}/${dayEntry.name}.csv`,
-      event => appendData(event.target, data, dayEntry)
+      event => appendData(event.target, data, dayEntry, validCountries)
     );
   }
 }
 
-function appendData(xhr, data, dayEntry) {
+function appendData(xhr, data, dayEntry, validCountries) {
   if (xhr.status == 200) {
     let dailyDataRaw = Plotly.d3.csv.parseRows(xhr.responseText);
     dayEntry.data = processData(dailyDataRaw);
@@ -61,7 +68,8 @@ function appendData(xhr, data, dayEntry) {
     dayEntry.status = 'failed';
   }
   if (isDoneLoading(data)) {
-    plotCountries(data, ['World']);
+    getValidCountries(data, validCountries);
+    plotCountries(data, ['world'], validCountries);
   }
 }
 
@@ -74,20 +82,29 @@ function isDoneLoading(data) {
   return true;
 }
 
-function plotCountries(data, countries) {
+function plotCountries(data, countries, validCountries) {
   let plotData = [];
 
   let options = getOptions();
 
+  // Check if each country is valid, and if so, get its plot data.
+  // If it's invalid, alert the user.
   for (let country of countries) {
-    let countryData = getCountryData(country, data, options);
-    if (countryData) {
-      plotData.push(countryData);
+    if (validCountries[country]) {
+      setCountryAlert(country, true);
+      let countryData = getCountryData(country, data, options);
+      if (countryData) {
+        plotData.push(countryData);
+      }
+    } else if (country && country.trim() !== '') {
+      setCountryAlert(country, false);
+    } else {
+      setCountryAlert(country, true);
     }
   }
 
   const plotTitleElem = document.getElementById('plot-title');
-  let plotTitle = plotData.map(d => d.name).join(', ')
+  let plotTitle = plotData.map(d => PLACES[d.name].displayName).join(', ')
   if (options.perCapita) {
     plotTitle += ' infection rate';
   } else if (options.diffs) {
@@ -116,33 +133,22 @@ function plotCountries(data, countries) {
 }
 
 function getCountryData(country, data, options) {
-  let [dates, counts] = getCountryCounts(data, country.toLowerCase(), 'confirmed');
-  // If we didn't find any data, alert that the country name might be invalid.
-  if (counts.length <= 0) {
-    if (country.trim() === '') {
-      setCountryAlert(country, true);
-    } else {
-      setCountryAlert(country, false);
-    }
-    console.error(`counts.length === ${counts.length} for ${country}`);
-    return null;
-  } else {
-    setCountryAlert(country, true);
-  }
+  // Get the raw confirmed counts.
+  let [dates, counts] = getCountryCounts(data, country, 'confirmed');
   // Apply the requested transformations.
   let yVals = null;
   if (!options.mortality) {
     [dates, counts] = rmNulls(dates, counts);
   }
   if (options.perCapita) {
-    yVals = divideByPop(counts, country.toLowerCase());
+    yVals = divideByPop(counts, country);
     if (!yVals) {
       return null;
     }
   } else if (options.rates) {
     [dates, yVals] = countsToRates(dates, counts);
   } else if (options.mortality) {
-    let [mDates, deaths] = getCountryCounts(data, country.toLowerCase(), 'deaths');
+    let [mDates, deaths] = getCountryCounts(data, country, 'deaths');
     [dates, yVals] = countsToMortality(dates, counts, deaths);
   } else if (options.diffs) {
     yVals = getCountDiffs(counts);
@@ -217,7 +223,7 @@ function getCountDiffs(counts) {
 
 function divideByPop(rawCounts, country) {
   let newCounts = [];
-  let population = POPULATIONS[country];
+  let population = PLACES[country].population;
   if (!population) {
     console.error(`No population found for ${country}.`);
     return null;
@@ -243,21 +249,29 @@ function countsToMortality(dates, caseCounts, deathCounts, thres=10) {
   return [newDates, mortRates];
 }
 
-function getCountryList(data) {
-  let countries = {};
+function getValidCountries(data, countries=null) {
+  if (countries === null) {
+    countries = {};
+  }
+  // Add the pseudo-country "World".
+  countries['world'] = 1;
   for (let dayEntry of data) {
     if (dayEntry.status !== 'loaded') {
       continue;
     }
     for (let row of dayEntry.data) {
       if (row.country) {
-        if (!countries[row.country]) {
-          countries[row.country] = 1;
+        let country = row.country.toLowerCase();
+        if (TRANSLATIONS[country]) {
+          country = TRANSLATIONS[country];
+        }
+        if (!countries[country]) {
+          countries[country] = 1;
         }
       }
     }
   }
-  return Object.keys(countries);
+  return countries;
 }
 
 function makeRequest(url, callback, respType='') {
@@ -368,12 +382,12 @@ function deepishCopy(source, target=null) {
 
 // UI //
 
-function plot(event, data) {
+function plot(event, data, validCountries) {
   if (typeof event !== 'undefined') {
     event.preventDefault();
   }
   let countries = getEnteredCountries();
-  plotCountries(data, countries);
+  plotCountries(data, countries, validCountries);
 }
 
 function addCountryInput(event, country=null) {
@@ -419,7 +433,7 @@ function getEnteredCountries() {
   let countries = [];
   const countryInputElems = document.getElementsByClassName('country-input');
   for (let countryInputElem of countryInputElems) {
-    let country = countryInputElem.value;
+    let country = countryInputElem.value.toLowerCase();
     if (TRANSLATIONS[country]) {
       country = TRANSLATIONS[country];
     }
@@ -440,7 +454,10 @@ function getOptions() {
 function setCountryAlert(country, valid) {
   const countryInputElems = document.getElementsByClassName('country-input');
   for (let countryInputElem of countryInputElems) {
-    let thisCountry = countryInputElem.value;
+    let thisCountry = countryInputElem.value.toLowerCase();
+    if (TRANSLATIONS[thisCountry]) {
+      thisCountry = TRANSLATIONS[thisCountry];
+    }
     if (thisCountry === country) {
       let countryAlertElem = countryInputElem.parentElement.querySelector('.country-alert');
       if (valid) {
