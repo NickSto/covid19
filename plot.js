@@ -43,6 +43,14 @@ function loadDataAndWireUI() {
   addCountryInput(null, 'World');
   const plotBtnElem = document.getElementById('plot-btn');
   plotBtnElem.addEventListener('click', event => plot(event, data, validCountries));
+  const perCapitaElem = document.querySelector('.option[value="perCapita"]');
+  let incompatibleElems = [];
+  for (let optionName of ['rates', 'mortality']) {
+    let optionElem = document.querySelector(`.option[value="${optionName}"]`);
+    incompatibleElems.push(optionElem);
+  }
+  const optionsList = document.getElementById('data-types');
+  optionsList.addEventListener('click', () => excludeOption(perCapitaElem, incompatibleElems));
 }
 
 function loadData(data, validCountries) {
@@ -104,18 +112,8 @@ function plotCountries(data, countries, validCountries) {
   }
 
   const plotTitleElem = document.getElementById('plot-title');
-  let plotTitle = plotData.map(d => d.name).join(', ')
-  if (options.perCapita) {
-    plotTitle += ' infection rate';
-  } else if (options.diffs) {
-    plotTitle += ' new infections per day';
-  } else if (options.rates) {
-    plotTitle += ' infection change per day';
-  } else if (options.mortality) {
-    plotTitle += ' mortality rates';
-  } else {
-    plotTitle += ' infections';
-  }
+  let plotTitle = plotData.map(d => d.name).join(', ') + getPlotDescription(options);
+
   plotTitleElem.textContent = plotTitle;
 
   let layout = deepishCopy(PLOT_LAYOUT);
@@ -132,6 +130,28 @@ function plotCountries(data, countries, validCountries) {
   Plotly.newPlot(plotContainer, plotData, layout);
 }
 
+function getPlotDescription(options) {
+  if (options.totals) {
+    if (options.perCapita) {
+      return ' infection rate';
+    } else {
+      return ' infections';
+    }
+  } else if (options.diffs) {
+    if (options.perCapita) {
+      return ' new infections per day per capita';
+    } else {
+      return ' new infections per day';
+    }
+  } else if (options.rates) {
+    return ' infection change per day';
+  } else if (options.mortality) {
+    return ' mortality rates';
+  } else {
+    console.error('Error: No options selected.');
+  }
+}
+
 function getCountryData(country, data, options) {
   // Get the raw confirmed counts.
   let [dates, counts] = getCountryCounts(data, country, 'confirmed');
@@ -140,12 +160,7 @@ function getCountryData(country, data, options) {
   if (!options.mortality) {
     [dates, counts] = rmNulls(dates, counts);
   }
-  if (options.perCapita) {
-    yVals = divideByPop(counts, country);
-    if (!yVals) {
-      return null;
-    }
-  } else if (options.rates) {
+  if (options.rates) {
     [dates, yVals] = countsToRates(dates, counts);
   } else if (options.mortality) {
     let [mDates, deaths] = getCountryCounts(data, country, 'deaths');
@@ -155,6 +170,12 @@ function getCountryData(country, data, options) {
     dates.shift();
   } else {
     yVals = counts;
+  }
+  if (options.perCapita) {
+    yVals = divideByPop(yVals, country);
+    if (!yVals) {
+      return null;
+    }
   }
   return {name:PLACES[country].displayName, x:dates, y:yVals}
 }
@@ -245,7 +266,6 @@ function countsToMortality(dates, caseCounts, deathCounts, thres=10) {
       newDates.push(dates[i]);
     }
   }
-  console.log(`newDates: ${newDates.length}, mortRates: ${mortRates.length}`);
   return [newDates, mortRates];
 }
 
@@ -442,15 +462,6 @@ function getEnteredCountries() {
   return countries;
 }
 
-function getOptions() {
-  let options = {};
-  const optionElems = document.getElementsByClassName('option');
-  for (let optionElem of optionElems) {
-    options[optionElem.value] = optionElem.checked;
-  }
-  return options;
-}
-
 function setCountryAlert(country, valid) {
   const countryInputElems = document.getElementsByClassName('country-input');
   for (let countryInputElem of countryInputElems) {
@@ -467,6 +478,30 @@ function setCountryAlert(country, valid) {
       }
       return;
     }
+  }
+}
+
+function getOptions() {
+  let options = {};
+  const optionElems = document.getElementsByClassName('option');
+  for (let optionElem of optionElems) {
+    options[optionElem.value] = optionElem.checked;
+  }
+  return options;
+}
+
+function excludeOption(excludedElem, incompatibleElems) {
+  let disable = false;
+  for (let incompatibleElem of incompatibleElems) {
+    if (incompatibleElem.checked) {
+      disable = true;
+    }
+  }
+  if (disable) {
+    excludedElem.disabled = true;
+    excludedElem.checked = false;
+  } else {
+    excludedElem.disabled = false;
   }
 }
 
