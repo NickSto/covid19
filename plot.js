@@ -104,7 +104,7 @@ function plotCountries(data, countries, validCountries) {
   }
 
   const plotTitleElem = document.getElementById('plot-title');
-  let plotTitle = plotData.map(d => PLACES[d.name].displayName).join(', ')
+  let plotTitle = plotData.map(d => d.name).join(', ')
   if (options.perCapita) {
     plotTitle += ' infection rate';
   } else if (options.diffs) {
@@ -156,7 +156,7 @@ function getCountryData(country, data, options) {
   } else {
     yVals = counts;
   }
-  return {name:country, x:dates, y:yVals}
+  return {name:PLACES[country].displayName, x:dates, y:yVals}
 }
 
 function getCountryCounts(data, country, type='confirmed') {
