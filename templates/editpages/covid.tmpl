@@ -1,1 +1,71 @@
-../../plot.html
+{% extends 'bootstrap.tmpl' %}
+{% load staticfiles %}
+
+{% block title %}Plot latest COVID-19 data{% endblock %}
+
+{% block stylesheet %}
+    <link rel="stylesheet" href="{% static 'editpages/css/covid.css' %}?via=html">
+{% endblock %}
+
+{% block content %}
+    <div id="main" class="container-fluid">
+
+      <div>
+        <h1 id="title">COVID-19 Infections</h1>
+      </div>
+
+      <div>
+        <p>Choose countries to compare:</p>
+        <div id="country-list">
+        </div>
+        <button id="add-country" class="btn btn-default" type="text">
+          Add country
+        </button>
+        <div id="options-list">
+          <div id="data-types">
+            <p>
+              <input class="option" type="radio" name="values" value="totals" checked>
+              <span>Total infections</span>
+            </p>
+            <p>
+              <input class="option" type="radio" name="values" value="diffs">
+              <span>New infections per day</span>
+            </p>
+            <p>
+              <input class="option" type="radio" name="values" value="rates">
+              <span>Rate of increase in infections</span>
+            </p>
+            <p>
+              <input class="option" type="radio" name="values" value="mortality">
+              <span>Mortality rate</span>
+            </p>
+          </div>
+          <div id="optional-options">
+            <p>
+              <input class="option" type="checkbox" value="perCapita">
+              <span>Per capita</span>
+            </p>
+            <p>
+              <input class="option" type="checkbox" value="log">
+              <span>Logarithmic Y axis</span>
+            </p>
+          </div>
+        </div>
+        <button id="plot-btn" class="btn btn-default" type="submit">
+          Make Plot
+        </button>
+      </div>
+
+      <div>
+        <h2 id="plot-title">Loading..</h2>
+      </div>
+      <div id="plot-container"></div>
+    </div>
+
+    <a id="json-link" class="hidden" href="{% static 'editpages/js/covid.json' %}">JSON data</a>
+{% endblock %}
+
+{% block javascript %}
+      <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
+      <script src="{% static 'editpages/js/covid.js' %}?via=html"></script>
+{% endblock %}
