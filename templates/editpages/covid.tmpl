@@ -14,52 +14,74 @@
         <h1 id="title">COVID-19 Infections</h1>
       </div>
 
-      <div>
-        <p>Choose countries to compare:</p>
-        <div id="country-list">
+      <section class="panel">
+        <div class="panel-heading">
+          <h3>About</h3>
         </div>
-        <button id="add-country" class="btn btn-default" type="text">
-          Add country
-        </button>
-        <div id="options-list">
-          <div id="data-types">
-            <p>
-              <input class="option" type="radio" name="values" value="totals" checked>
-              <span>Total infections</span>
-            </p>
-            <p>
-              <input class="option" type="radio" name="values" value="diffs">
-              <span>New infections per day</span>
-            </p>
-            <p>
-              <input class="option" type="radio" name="values" value="rates">
-              <span>Rate of increase in infections</span>
-            </p>
-            <p>
-              <input class="option" type="radio" name="values" value="mortality">
-              <span>Mortality rate</span>
-            </p>
-          </div>
-          <div id="optional-options">
-            <p>
-              <input class="option" type="checkbox" value="perCapita">
-              <span>Per capita</span>
-            </p>
-            <p>
-              <input class="option" type="checkbox" value="log">
-              <span>Logarithmic Y axis</span>
-            </p>
-          </div>
+        <div class="panel-body">
+          <p>
+            There's a lot of information to keep track of these days. So I built this as a way to quickly visualize changes in vital statistics over time and compare between countries.
+          </p>
+          <p>
+            Thanks to the <a href="https://systems.jhu.edu/">Johns Hopkins Center for Systems Science and Engineering</a>. This uses <a href="https://github.com/CSSEGISandData/COVID-19">their data</a>, usually updated every night at 8PM EST.
+          </p>
         </div>
-        <button id="plot-btn" class="btn btn-default" type="submit">
-          Make Plot
-        </button>
-      </div>
+      </section>
 
-      <div>
-        <h2 id="plot-title">Loading..</h2>
-      </div>
-      <div id="plot-container"></div>
+      <section class="panel">
+        <div class="panel-heading">
+          <h3>Parameters</h3>
+        </div>
+        <div class="panel-body">
+          <p>Choose countries to compare:</p>
+          <div id="country-list">
+          </div>
+          <button id="add-country" class="btn btn-default" type="text">
+            Add country
+          </button>
+          <div id="options-list">
+            <div id="data-types">
+              <p>
+                <input class="option" type="radio" name="values" value="totals" checked>
+                <span>Total infections</span>
+              </p>
+              <p>
+                <input class="option" type="radio" name="values" value="diffs">
+                <span>New infections per day</span>
+              </p>
+              <p>
+                <input class="option" type="radio" name="values" value="rates">
+                <span>Rate of increase in infections</span>
+              </p>
+              <p>
+                <input class="option" type="radio" name="values" value="mortality">
+                <span>Mortality rate</span>
+              </p>
+            </div>
+            <div id="optional-options">
+              <p>
+                <input class="option" type="checkbox" value="perCapita">
+                <span>Per capita</span>
+              </p>
+              <p>
+                <input class="option" type="checkbox" value="log">
+                <span>Logarithmic Y axis</span>
+              </p>
+            </div>
+          </div>
+          <button id="plot-btn" class="btn btn-default" type="submit">
+            Make Plot
+          </button>
+        </div>
+      </section>
+
+      <section>
+        <div>
+          <h2 id="plot-title">Loading..</h2>
+        </div>
+        <div id="plot-container">
+        </div>
+      </section>
     </div>
 
     <a id="json-link" class="hidden" href="{% static 'editpages/js/covid.json' %}">JSON data</a>
