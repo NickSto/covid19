@@ -69,11 +69,18 @@ function loadData(data) {
 function receiveData(xhr, data, stat, loadStates) {
   if (xhr.status == 200) {
     let rawTableData = Plotly.d3.csv.parseRows(xhr.responseText);
-    let [tableData, dates] = parseTable(rawTableData);
-    addData(data, stat, tableData, dates);
-    loadStates.push('loaded');
+    try {
+      let [tableData, dates] = parseTable(rawTableData);
+      addData(data, stat, tableData, dates);
+      loadStates.push('loaded');
+    } catch(error) {
+      loadStates.push('failed');
+      setError('Problem loading raw data.');
+      throw error;
+    }
   } else {
     loadStates.push('failed');
+    setError('Problem fetching raw data.');
     throw `Request for ${stat} data failed: ${xhr.status}: ${xhr.statusText}`;
   }
   if (isDoneLoading(loadStates)) {
@@ -419,7 +426,7 @@ function addCountryInput(event, country=null) {
   }
   countryContainerElem.appendChild(countryInputElem);
   let countryAlertElem = document.createElement('span');
-  countryAlertElem.classList.add('country-alert');
+  countryAlertElem.classList.add('country-alert', 'error', 'hidden');
   countryAlertElem.textContent = "Couldn't find this country in the data. Try checking the spelling.";
   countryContainerElem.appendChild(countryAlertElem);
   countryListElem.appendChild(countryContainerElem);
@@ -460,9 +467,9 @@ function setCountryAlert(country, valid) {
     if (thisCountry === country) {
       let countryAlertElem = countryInputElem.parentElement.querySelector('.country-alert');
       if (valid) {
-        countryAlertElem.style.display = 'none';
+        countryAlertElem.classList.add('hidden');
       } else {
-        countryAlertElem.style.display = 'initial';
+        countryAlertElem.classList.remove('hidden');
       }
       return;
     }
@@ -491,6 +498,18 @@ function excludeOption(excludedElem, incompatibleElems) {
   } else {
     excludedElem.disabled = false;
   }
+}
+
+function setError(message) {
+  const stderrElem = document.getElementById('stderr');
+  stderrElem.classList.remove('hidden');
+  stderrElem.textContent = message;
+}
+
+function clearError() {
+  const stderrElem = document.getElementById('stderr');
+  stderrElem.classList.add('hidden');
+  stderrElem.textContent = '';
 }
 
 // init //
