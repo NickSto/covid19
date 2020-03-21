@@ -45,14 +45,9 @@ function loadDataAndWireUI() {
   addCountryInput(null, 'World');
   const plotBtnElem = document.getElementById('plot-btn');
   plotBtnElem.addEventListener('click', event => plot(event, data));
-  const perCapitaElem = document.querySelector('.option[value="perCapita"]');
-  let incompatibleElems = [];
-  for (let optionName of ['rates', 'mortality']) {
-    let optionElem = document.querySelector(`.option[value="${optionName}"]`);
-    incompatibleElems.push(optionElem);
-  }
-  const optionsList = document.getElementById('data-types');
-  optionsList.addEventListener('click', () => excludeOption(perCapitaElem, incompatibleElems));
+  const optionsElem = document.getElementById('options');
+  optionsElem.addEventListener('click', setValidOptions);
+  setValidOptions();
 }
 
 function loadData(data) {
@@ -103,7 +98,7 @@ function plotCountries(data, countries) {
     if (data.counts.hasOwnProperty(country)) {
       setCountryAlert(country, true);
       try {
-        let countryData = getCountryData(country, data, options);
+        let countryData = getCountryPlotData(country, data, options);
         plotData.push(countryData);
       } catch(error) {
         console.error(error);
@@ -116,14 +111,14 @@ function plotCountries(data, countries) {
   }
 
   const plotTitleElem = document.getElementById('plot-title');
-  let plotTitle = plotData.map(d => d.name).join(', ') + getPlotDescription(options);
+  let plotTitle = plotData.map(d => d.name).join(', ')+' '+getPlotDescription(options);
 
   plotTitleElem.textContent = plotTitle;
 
   let layout = deepishCopy(PLOT_LAYOUT);
   if (options.rates) {
     layout.yaxis.tickformat = '%';
-  } else if (options.mortality) {
+  } else if (options.dataType === 'mortality') {
     layout.yaxis.tickformat = '.2p'
   }
   if (options.log) {
@@ -135,48 +130,61 @@ function plotCountries(data, countries) {
 }
 
 function getPlotDescription(options) {
+  let unit = options.dataType;
+  if (options.dataType === 'cases') {
+    unit = 'infections';
+  } else if (options.dataType === 'mortality') {
+    unit = 'mortality rate';
+  }
+  let prefix = '';
+  let suffix = '';
   if (options.totals) {
-    if (options.perCapita) {
-      return ' infection rate';
-    } else {
-      return ' infections';
-    }
+    prefix = 'cumulative ';
   } else if (options.diffs) {
+    prefix = 'new ';
     if (options.perCapita) {
-      return ' new infections per day per capita';
+      suffix = ' per day per capita';
     } else {
-      return ' new infections per day';
+      suffix = ' per day';
     }
   } else if (options.rates) {
-    return ' infection change per day';
-  } else if (options.mortality) {
-    return ' mortality rates';
-  } else {
-    console.error('Error: No options selected.');
+    suffix = ' change per day';
   }
+  if (options.perCapita && options.totals) {
+    unit = unit.replace('s','')+' rate';
+  }
+  return prefix+unit+suffix;
 }
 
-function getCountryData(country, data, options) {
+function getCountryPlotData(country, data, options) {
   // Get the raw confirmed cases counts.
-  let cases = data.counts[country]['__totals__'].cases;
   let dates = data.dates;
+  let counts = getCountryCounts(data.counts[country]['__totals__'], options.dataType);
+  [dates, counts] = rmNulls(dates, counts);
   // Apply the requested transformations.
   let yVals = null;
   if (options.rates) {
-    [dates, yVals] = countsToRates(dates, cases);
-  } else if (options.mortality) {
-    let deaths = data.counts[country]['__totals__'].deaths;
-    [dates, yVals] = countsToMortality(dates, cases, deaths);
+    [dates, yVals] = countsToRates(dates, counts);
   } else if (options.diffs) {
-    yVals = getCountDiffs(cases);
+    yVals = getCountDiffs(counts);
     dates = dates.slice(1);
   } else {
-    yVals = cases;
+    yVals = counts;
   }
   if (options.perCapita) {
     yVals = divideByPop(yVals, country);
   }
   return {name:PLACES[country].displayName, x:dates, y:yVals}
+}
+
+function getCountryCounts(allCountryCounts, dataType) {
+  if (dataType === 'mortality') {
+    let cases = allCountryCounts.cases;
+    let deaths = allCountryCounts.deaths;
+    return countsToMortality(cases, deaths);
+  } else {
+    return allCountryCounts[dataType];
+  }
 }
 
 function rmNulls(dates, counts) {
@@ -232,18 +240,18 @@ function divideByPop(rawCounts, country) {
   return newCounts;
 }
 
-function countsToMortality(dates, caseCounts, deathCounts, thres=10) {
-  let mortRates = [];
-  let newDates = [];
+function countsToMortality(caseCounts, deathCounts, thres=10) {
+  let mortalities = [];
   for (let i = 0; i < caseCounts.length; i++) {
     let cases = caseCounts[i];
     let deaths = deathCounts[i];
     if (deaths !== null && cases !== null && cases >= thres) {
-      mortRates.push(deaths/cases);
-      newDates.push(dates[i]);
+      mortalities.push(deaths/cases);
+    } else {
+      mortalities.push(null);
     }
   }
-  return [newDates, mortRates];
+  return mortalities;
 }
 
 function makeRequest(url, callback, respType='') {
@@ -480,23 +488,32 @@ function getOptions() {
   let options = {};
   const optionElems = document.getElementsByClassName('option');
   for (let optionElem of optionElems) {
-    options[optionElem.value] = optionElem.checked;
+    if (optionElem.name == 'data-types') {
+      if (optionElem.checked) {
+        options.dataType = optionElem.value;
+      }
+    } else {
+      options[optionElem.value] = optionElem.checked;
+    }
   }
   return options;
 }
 
-function excludeOption(excludedElem, incompatibleElems) {
-  let disable = false;
-  for (let incompatibleElem of incompatibleElems) {
-    if (incompatibleElem.checked) {
-      disable = true;
+function setValidOptions() {
+  // Can't use per capita option with mortality rate or rate of increase.
+  let disablePerCapita = false;
+  for (let value of ['mortality', 'rates']) {
+    optionElem = document.querySelector(`.option[value="${value}"]`);
+    if (optionElem !== null && optionElem.checked) {
+      disablePerCapita = true;
     }
   }
-  if (disable) {
-    excludedElem.disabled = true;
-    excludedElem.checked = false;
+  const perCapitaElem = document.querySelector('.option[value="perCapita"]');
+  if (disablePerCapita) {
+    perCapitaElem.disabled = true;
+    perCapitaElem.checked = false;
   } else {
-    excludedElem.disabled = false;
+    perCapitaElem.disabled = false;
   }
 }
 

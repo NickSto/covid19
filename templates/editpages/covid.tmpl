@@ -40,33 +40,50 @@
           <button id="add-country" class="btn btn-default" type="text">
             Add country
           </button>
-          <div id="options-list">
-            <div id="data-types">
+          <div id="options">
+            <p id="data-types">
+              <span>
+                What data?
+              </span>
+              <span class="data-type-container">
+                <input class="option" type="radio" name="data-types" value="cases" checked>
+                <span class="option-label">Infections</span>
+              </span>
+              <span class="data-type-container">
+                <input class="option" type="radio" name="data-types" value="deaths">
+                <span class="option-label">Deaths</span>
+              </span>
+              <span class="data-type-container">
+                <input class="option" type="radio" name="data-types" value="recovered">
+                <span class="option-label">Recovered</span>
+              </span>
+              <span class="data-type-container">
+                <input class="option" type="radio" name="data-types" value="mortality">
+                <span class="option-label">Mortality rate</span>
+              </span>
+            </p>
+            <div id="transformations">
               <p>
-                <input class="option" type="radio" name="values" value="totals" checked>
-                <span>Total infections</span>
+                <input class="option" type="radio" name="transformations" value="totals" checked>
+                <span class="option-label">Cumulative</span>
               </p>
               <p>
-                <input class="option" type="radio" name="values" value="diffs">
-                <span>New infections per day</span>
+                <input class="option" type="radio" name="transformations" value="diffs">
+                <span class="option-label">Per day</span>
               </p>
               <p>
-                <input class="option" type="radio" name="values" value="rates">
-                <span>Rate of increase in infections</span>
-              </p>
-              <p>
-                <input class="option" type="radio" name="values" value="mortality">
-                <span>Mortality rate</span>
+                <input class="option" type="radio" name="transformations" value="rates">
+                <span class="option-label">Rate of increase (per day)</span>
               </p>
             </div>
             <div id="optional-options">
               <p>
                 <input class="option" type="checkbox" value="perCapita">
-                <span>Per capita</span>
+                <span class="option-label">Per capita</span>
               </p>
               <p>
                 <input class="option" type="checkbox" value="log">
-                <span>Logarithmic</span>
+                <span class="option-label">Logarithmic</span>
               </p>
             </div>
           </div>

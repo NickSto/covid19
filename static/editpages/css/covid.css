@@ -28,11 +28,15 @@
   margin: 5px 0;
 }
 
-#options-list p {
+.data-type-container {
+  margin-left: 8px;
+}
+
+#options p {
   margin-bottom: 5px;
 }
 
-#options-list p span {
+.option-label {
   margin-left: 5px;
   vertical-align: text-bottom;
 }
