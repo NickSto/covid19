@@ -1,10 +1,14 @@
 
-const DATA_URL_BASE = 'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/csse_covid_19_daily_reports';
+const DATA_URL_BASE = (
+  'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/'+
+  'csse_covid_19_time_series/time_series_19-covid'
+);
 const PLOT_LAYOUT = {
   margin: {t:0, b:0, l:0, r:0},
   yaxis: {automargin: true},
   xaxis: {automargin: true},
 };
+const STAT_NAMES = {'cases':'Confirmed', 'deaths':'Deaths', 'recovered':'Recovered'};
 let PLACES = null;
 let TRANSLATIONS = {};
 
@@ -33,15 +37,14 @@ function initPlaces(event) {
 }
 
 function loadDataAndWireUI() {
-  let data = [];
-  let validCountries = {};
-  loadData(data, validCountries);
+  let data = {'dates':null, 'counts':{}};
+  loadData(data);
 
   const addCountryElem = document.getElementById('add-country');
   addCountryElem.addEventListener('click', addCountryInput);
   addCountryInput(null, 'World');
   const plotBtnElem = document.getElementById('plot-btn');
-  plotBtnElem.addEventListener('click', event => plot(event, data, validCountries));
+  plotBtnElem.addEventListener('click', event => plot(event, data));
   const perCapitaElem = document.querySelector('.option[value="perCapita"]');
   let incompatibleElems = [];
   for (let optionName of ['rates', 'mortality']) {
@@ -52,44 +55,37 @@ function loadDataAndWireUI() {
   optionsList.addEventListener('click', () => excludeOption(perCapitaElem, incompatibleElems));
 }
 
-function loadData(data, validCountries) {
-  for (let dayEntry of getDates()) {
-    dayEntry.status = 'loading';
-    data.push(dayEntry);
-  }
-  for (let dayEntry of data) {
+function loadData(data) {
+  let loadStates = [];
+  for (let stat of Object.keys(STAT_NAMES)) {
+    let statName = STAT_NAMES[stat];
     makeRequest(
-      `${DATA_URL_BASE}/${dayEntry.name}.csv`,
-      event => appendData(event.target, data, dayEntry, validCountries)
+      `${DATA_URL_BASE}-${statName}.csv`,
+      event => receiveData(event.target, data, stat, loadStates)
     );
   }
 }
 
-function appendData(xhr, data, dayEntry, validCountries) {
+function receiveData(xhr, data, stat, loadStates) {
   if (xhr.status == 200) {
-    let dailyDataRaw = Plotly.d3.csv.parseRows(xhr.responseText);
-    dayEntry.data = processData(dailyDataRaw);
-    dayEntry.status = 'loaded';
+    let rawTableData = Plotly.d3.csv.parseRows(xhr.responseText);
+    let [tableData, dates] = parseTable(rawTableData);
+    addData(data, stat, tableData, dates);
+    loadStates.push('loaded');
   } else {
-    console.error(`Request for ${dayEntry.name}.csv failed: ${xhr.status}: ${xhr.statusText}`);
-    dayEntry.status = 'failed';
+    loadStates.push('failed');
+    throw `Request for ${stat} data failed: ${xhr.status}: ${xhr.statusText}`;
   }
-  if (isDoneLoading(data)) {
-    getValidCountries(data, validCountries);
-    plotCountries(data, ['world'], validCountries);
+  if (isDoneLoading(loadStates)) {
+    plotCountries(data, ['world']);
   }
 }
 
-function isDoneLoading(data) {
-  for (let dayEntry of data) {
-    if (dayEntry.status === 'loading') {
-      return false;
-    }
-  }
-  return true;
+function isDoneLoading(loadStates) {
+  return loadStates.length === 3 && loadStates.every(s => s === 'loaded');
 }
 
-function plotCountries(data, countries, validCountries) {
+function plotCountries(data, countries) {
   let plotData = [];
 
   let options = getOptions();
@@ -97,11 +93,13 @@ function plotCountries(data, countries, validCountries) {
   // Check if each country is valid, and if so, get its plot data.
   // If it's invalid, alert the user.
   for (let country of countries) {
-    if (validCountries[country]) {
+    if (data.counts.hasOwnProperty(country)) {
       setCountryAlert(country, true);
-      let countryData = getCountryData(country, data, options);
-      if (countryData) {
+      try {
+        let countryData = getCountryData(country, data, options);
         plotData.push(countryData);
+      } catch(error) {
+        console.error(error);
       }
     } else if (country && country.trim() !== '') {
       setCountryAlert(country, false);
@@ -152,53 +150,26 @@ function getPlotDescription(options) {
 }
 
 function getCountryData(country, data, options) {
-  // Get the raw confirmed counts.
-  let [dates, counts] = getCountryCounts(data, country, 'confirmed');
+  // Get the raw confirmed cases counts.
+  let cases = data.counts[country]['__totals__'].cases;
+  let dates = data.dates;
   // Apply the requested transformations.
   let yVals = null;
-  if (!options.mortality) {
-    [dates, counts] = rmNulls(dates, counts);
-  }
   if (options.rates) {
-    [dates, yVals] = countsToRates(dates, counts);
+    [dates, yVals] = countsToRates(dates, cases);
   } else if (options.mortality) {
-    let [mDates, deaths] = getCountryCounts(data, country, 'deaths');
-    [dates, yVals] = countsToMortality(dates, counts, deaths);
+    let deaths = data.counts[country]['__totals__'].deaths;
+    [dates, yVals] = countsToMortality(dates, cases, deaths);
   } else if (options.diffs) {
-    yVals = getCountDiffs(counts);
-    dates.shift();
+    yVals = getCountDiffs(cases);
+    dates = dates.slice(1);
   } else {
-    yVals = counts;
+    yVals = cases;
   }
   if (options.perCapita) {
     yVals = divideByPop(yVals, country);
-    if (!yVals) {
-      return null;
-    }
   }
   return {name:PLACES[country].displayName, x:dates, y:yVals}
-}
-
-function getCountryCounts(data, country, type='confirmed') {
-  let dates = [];
-  let counts = [];
-  for (let dayEntry of data) {
-    if (dayEntry.status !== 'loaded') {
-      continue
-    }
-    let total = null;
-    for (let row of dayEntry.data) {
-      if ((country === 'world' || row.country === country) && row[type] !== null) {
-        if (total === null) {
-          total = 0;
-        }
-        total += row[type];
-      }
-    }
-    dates.push(dayEntry.date);
-    counts.push(total);
-  }
-  return [dates, counts];
 }
 
 function rmNulls(dates, counts) {
@@ -268,31 +239,6 @@ function countsToMortality(dates, caseCounts, deathCounts, thres=10) {
   return [newDates, mortRates];
 }
 
-function getValidCountries(data, countries=null) {
-  if (countries === null) {
-    countries = {};
-  }
-  // Add the pseudo-country "World".
-  countries['world'] = 1;
-  for (let dayEntry of data) {
-    if (dayEntry.status !== 'loaded') {
-      continue;
-    }
-    for (let row of dayEntry.data) {
-      if (row.country) {
-        let country = row.country.toLowerCase();
-        if (TRANSLATIONS[country]) {
-          country = TRANSLATIONS[country];
-        }
-        if (!countries[country]) {
-          countries[country] = 1;
-        }
-      }
-    }
-  }
-  return countries;
-}
-
 function makeRequest(url, callback, respType='') {
   let request = new XMLHttpRequest();
   request.responseType = respType;
@@ -301,33 +247,80 @@ function makeRequest(url, callback, respType='') {
   request.send();
 }
 
-function processData(rawTable) {
-  let table = [];
+function parseTable(rawTable) {
+  let tableData = {'world':{}};
+  let dates = null;
   let rowNum = 0;
   for (let row of rawTable) {
     rowNum++;
-    let region = parseStr(row[0]);
-    let country = parseStr(row[1]);
-    let confirmed = strToInt(row[3]);
-    let deaths = strToInt(row[4]);
-    let recovered = strToInt(row[5]);
-    if (TRANSLATIONS[country]) {
-      country = TRANSLATIONS[country];
-    }
-    if (isNaN(confirmed)) {
-      if (rowNum !== 1) {
-        console.error(`Invalid 'Confirmed' number on row ${rowNum}: ${confirmed} (updated ${row[2]})`);
+    if (rowNum === 1) {
+      // Store the dates given in the header.
+      if (
+        row[0] === 'Province/State' &&
+        row[1] === 'Country/Region' &&
+        row[2] === 'Lat' &&
+        row[3] === 'Long' &&
+        row[4] === '1/22/20'
+      ) {
+        dates = row.slice(4).map(e => parseDate(e));
+      } else {
+        throw `Invalid raw data: Unexpected first line format: ${row.slice(0,7)}..`;
       }
-      continue;
+    } else {
+      // Parse a data row, store the counts.
+      let region = parseAndLowerStr(row[0]);
+      let country = parseAndLowerStr(row[1]);
+      let counts = row.slice(4).map(strToInt);
+      if (TRANSLATIONS.hasOwnProperty(country)) {
+        country = TRANSLATIONS[country];
+      }
+      if (! tableData.hasOwnProperty(country)) {
+        tableData[country] = {};
+      }
+      if (counts.length !== dates.length) {
+        throw `Invalid raw data: counts.length (${counts.length}) != dates.length (${dates.length}).`;
+      }
+      tableData[country][region] = counts;
+      // Add to area totals: world and country.
+      for (let area of [tableData['world'], tableData[country]]) {
+        if (area.hasOwnProperty('__totals__')) {
+          let totals = area['__totals__'];
+          if (counts.length !== totals.length) {
+            throw `Invalid raw data: Different count lengths (${counts.length} != ${totals.length}).`;
+          }
+          for (let i = 0; i < counts.length; i++) {
+            totals[i] += counts[i];
+          }
+        } else {
+          area['__totals__'] = counts.slice();
+        }
+      }
     }
-    table.push({
-      region: region, country: country, confirmed: confirmed, deaths: deaths, recovered: recovered
-    })
   }
-  return table;
+  return [tableData, dates];
 }
 
-function parseStr(rawStr) {
+function parseDate(dateStr) {
+  let fields = dateStr.split('/');
+  if (fields.length !== 3) {
+    throw `Invalid Date string ${dateStr}: Wrong number of fields.`;
+  }
+  let month = parseInt(fields[0]);
+  let day = parseInt(fields[1]);
+  let year = 2000+parseInt(fields[2]);
+  if (year < 2020 || year > 2050) {
+    throw `Invalid Date string ${dateStr}: Year out of bounds.`;
+  }
+  if (month < 1 || month > 11) {
+    throw `Invalid Date string ${dateStr}: Month out of bounds.`;
+  }
+  if (day < 1 || day > 31) {
+    throw `Invalid Date string ${dateStr}: Day out of bounds.`;
+  }
+  return new Date(year, month-1, day);
+}
+
+function parseAndLowerStr(rawStr) {
   if (rawStr === '') {
     return null;
   } else {
@@ -343,39 +336,35 @@ function strToInt(intStr) {
   }
 }
 
-function getDates() {
-  let dates = [];
-  const StartYear = 2020;
-  const now = new Date();
-  const thisYear = now.getFullYear();
-  const thisMonth = now.getMonth()+1;
-  const thisDay = now.getDate();
-  let done = false;
-  for (let year = StartYear; year <= thisYear; year++) {
-    for (let month = 1; month <= 12; month++) {
-      for (let day = 1; day <= 31; day++) {
-        if (year == StartYear && month == 1 && day < 22) {
-          continue;
-        }
-        let dayStr = day.toString().padStart(2, '0');
-        let monthStr = month.toString().padStart(2, '0');
-        let dateStr = `${monthStr}-${dayStr}-${year}`;
-        let dateObj = new Date(year, month-1, day);
-        dates.push({name:dateStr, date:dateObj});
-        if (year == thisYear && month == thisMonth && day == thisDay) {
-          done = true;
-          break;
-        }
-      }
-      if (done) {
-        break;
-      }
+function addData(data, stat, tableData, dates) {
+  if (data['dates'] === null) {
+    data['dates'] = dates;
+  } else {
+    compareDates(dates, data['dates']);
+  }
+  let counts = data['counts'];
+  for (let country of Object.keys(tableData)) {
+    if (! counts.hasOwnProperty(country)) {
+      counts[country] = {};
     }
-    if (done) {
-      break;
+    for (let region of Object.keys(tableData[country])) {
+      if (! counts[country].hasOwnProperty(region)) {
+        counts[country][region] = {};
+      }
+      counts[country][region][stat] = tableData[country][region];
     }
   }
-  return dates;
+}
+
+function compareDates(dates1, dates2) {
+  if (dates1.length !== dates2.length) {
+    throw `Number of dates does not agree between tables (${dates1.length} != ${dates2.length}`;
+  }
+  for (let i = 0; i < dates1.length; i++) {
+    if (dates1[i].getTime() !== dates2[i].getTime()) {
+      throw `Dates not the same in different tables (${dates1[i]} != ${dates2[i]}).`;
+    }
+  }
 }
 
 /* Warning: This is a very limited deep copy, basically only made for simple situations like objects
@@ -401,12 +390,12 @@ function deepishCopy(source, target=null) {
 
 // UI //
 
-function plot(event, data, validCountries) {
+function plot(event, data) {
   if (typeof event !== 'undefined') {
     event.preventDefault();
   }
   let countries = getEnteredCountries();
-  plotCountries(data, countries, validCountries);
+  plotCountries(data, countries);
 }
 
 function addCountryInput(event, country=null) {
@@ -453,7 +442,7 @@ function getEnteredCountries() {
   const countryInputElems = document.getElementsByClassName('country-input');
   for (let countryInputElem of countryInputElems) {
     let country = countryInputElem.value.toLowerCase();
-    if (TRANSLATIONS[country]) {
+    if (TRANSLATIONS.hasOwnProperty(country)) {
       country = TRANSLATIONS[country];
     }
     countries.push(country);
@@ -465,7 +454,7 @@ function setCountryAlert(country, valid) {
   const countryInputElems = document.getElementsByClassName('country-input');
   for (let countryInputElem of countryInputElems) {
     let thisCountry = countryInputElem.value.toLowerCase();
-    if (TRANSLATIONS[thisCountry]) {
+    if (TRANSLATIONS.hasOwnProperty(thisCountry)) {
       thisCountry = TRANSLATIONS[thisCountry];
     }
     if (thisCountry === country) {
