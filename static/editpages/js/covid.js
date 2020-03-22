@@ -10,6 +10,8 @@ const PLOT_LAYOUT = {
 };
 const STAT_NAMES = {'cases':'Confirmed', 'deaths':'Deaths', 'recovered':'Recovered'};
 let PLACES = null;
+let REGIONS = {};
+let REGION_CODES = {};
 let TRANSLATIONS = {};
 
 function initCovid() {
@@ -23,11 +25,31 @@ function initPlaces(event) {
   if (xhr.status == 200) {
     PLACES = xhr.response;
     for (let country in PLACES) {
+      // Compile translation table for alternate country names.
       let countryData = PLACES[country];
-      if (countryData.aliases) {
+      if (countryData.hasOwnProperty('aliases')) {
         for (let alias of countryData.aliases) {
           TRANSLATIONS[alias] = country;
         }
+      }
+      if (countryData.hasOwnProperty('regions')) {
+        let regionCodes = {};
+        for (let region of Object.keys(countryData.regions)) {
+          let regionData = countryData.regions[region];
+          // Compile lookup table mapping regions to countries.
+          REGIONS[region] = country;
+          // Compile lookup table for postal codes.
+          if (regionData.hasOwnProperty('code')) {
+            regionCodes[regionData.code] = region;
+          }
+          // Add region aliases.
+          if (regionData.hasOwnProperty('aliases')) {
+            for (let alias of regionData.aliases) {
+              TRANSLATIONS[alias] = region;
+            }
+          }
+        }
+        REGION_CODES[country] = regionCodes;
       }
     }
     loadDataAndWireUI();
@@ -95,7 +117,7 @@ function plotCountries(data, countries) {
   // Check if each country is valid, and if so, get its plot data.
   // If it's invalid, alert the user.
   for (let country of countries) {
-    if (data.counts.hasOwnProperty(country)) {
+    if (data.counts.hasOwnProperty(country) || REGIONS.hasOwnProperty(country)) {
       setCountryAlert(country, true);
       try {
         let countryData = getCountryPlotData(country, data, options);
@@ -104,6 +126,7 @@ function plotCountries(data, countries) {
         console.error(error);
       }
     } else if (country && country.trim() !== '') {
+      console.error(`Cound not find country ${country}.`);
       setCountryAlert(country, false);
     } else {
       setCountryAlert(country, true);
@@ -157,9 +180,20 @@ function getPlotDescription(options) {
 }
 
 function getCountryPlotData(country, data, options) {
+  let region = '__all__';
+  let displayName;
+  if (data.counts.hasOwnProperty(country)) {
+    displayName = PLACES[country].displayName;
+  } else if (REGIONS.hasOwnProperty(country)) {
+    region = country;
+    country = REGIONS[country];
+    displayName = PLACES[country].regions[region].displayName;
+  } else {
+    throw `No country or region found for ${country}`;
+  }
   // Get the raw confirmed cases counts.
   let dates = data.dates;
-  let counts = getCountryCounts(data.counts[country]['__totals__'], options.dataType);
+  let counts = getCountryCounts(data.counts[country][region], options.dataType);
   [dates, counts] = rmNulls(dates, counts);
   // Apply the requested transformations.
   let yVals = null;
@@ -172,9 +206,9 @@ function getCountryPlotData(country, data, options) {
     yVals = counts;
   }
   if (options.perCapita) {
-    yVals = divideByPop(yVals, country);
+    yVals = divideByPop(yVals, country, region);
   }
-  return {name:PLACES[country].displayName, x:dates, y:yVals}
+  return {name:displayName, x:dates, y:yVals}
 }
 
 function getCountryCounts(allCountryCounts, dataType) {
@@ -227,12 +261,16 @@ function getCountDiffs(counts) {
   return diffs;
 }
 
-function divideByPop(rawCounts, country) {
+function divideByPop(rawCounts, country, region) {
   let newCounts = [];
-  let population = PLACES[country].population;
+  let population;
+  if (region === '__all__') {
+    population = PLACES[country].population;
+  } else {
+    population = PLACES[country].regions[region].population;
+  }
   if (!population) {
-    console.error(`No population found for ${country}.`);
-    return null;
+    throw `No population found for ${country}/${region}.`;
   }
   for (let count of rawCounts) {
     newCounts.push(count/population);
@@ -271,11 +309,11 @@ function parseTable(rawTable) {
     if (rowNum === 1) {
       // Store the dates given in the header.
       if (
-        row[0] === 'Province/State' &&
-        row[1] === 'Country/Region' &&
-        row[2] === 'Lat' &&
-        row[3] === 'Long' &&
-        row[4] === '1/22/20'
+        row[0].trim() === 'Province/State' &&
+        row[1].trim() === 'Country/Region' &&
+        row[2].trim() === 'Lat' &&
+        row[3].trim() === 'Long' &&
+        row[4].trim() === '1/22/20'
       ) {
         dates = row.slice(4).map(e => parseDate(e));
       } else {
@@ -283,33 +321,37 @@ function parseTable(rawTable) {
       }
     } else {
       // Parse a data row, store the counts.
-      let region = parseAndLowerStr(row[0]);
+      let rawRegion = parseAndLowerStr(row[0]);
       let country = parseAndLowerStr(row[1]);
       let counts = row.slice(4).map(strToInt);
       if (TRANSLATIONS.hasOwnProperty(country)) {
         country = TRANSLATIONS[country];
       }
-      if (! tableData.hasOwnProperty(country)) {
-        tableData[country] = {};
-      }
+      let region = parseRegion(rawRegion, country);
       if (counts.length !== dates.length) {
         throw `Invalid raw data: counts.length (${counts.length}) != dates.length (${dates.length}).`;
       }
-      tableData[country][region] = counts;
-      // Add to area totals: world and country.
-      for (let area of [tableData['world'], tableData[country]]) {
-        if (area.hasOwnProperty('__totals__')) {
-          let totals = area['__totals__'];
-          if (counts.length !== totals.length) {
-            throw `Invalid raw data: Different count lengths (${counts.length} != ${totals.length}).`;
-          }
-          for (let i = 0; i < counts.length; i++) {
-            totals[i] += counts[i];
-          }
-        } else {
-          area['__totals__'] = counts.slice();
-        }
+      if (! tableData.hasOwnProperty(country)) {
+        tableData[country] = {};
       }
+      if (tableData[country].hasOwnProperty(region)) {
+        // Are there already counts for this region?
+        if (region === '__all__') {
+          // If this is a country-wide row, there shouldn't already be a country-wide entry in the
+          // data. That'd mean that earlier we saw a row for a region in this country, and now
+          // we're seeing a country-wide row. That shouldn't occur.
+          throw `Saw a country-wide row for ${country}, but we already saw an entry it.`;
+        }
+        // If there are already counts for this region, add the new ones to them.
+        // This can happen for county-level data before they stopped including them on March 10.
+        for (let i = 0; i < counts.length; i++) {
+          tableData[country][region][i] += counts[i];
+        }
+      } else {
+        tableData[country][region] = counts;
+      }
+      // Add to area totals: world and country.
+      addToTotals(tableData, country, counts);
     }
   }
   return [tableData, dates];
@@ -335,19 +377,53 @@ function parseDate(dateStr) {
   return new Date(year, month-1, day);
 }
 
+function parseRegion(rawRegion, country) {
+  if (rawRegion === null) {
+    return '__all__';
+  }
+  if (TRANSLATIONS.hasOwnProperty(rawRegion)) {
+    return TRANSLATIONS[rawRegion];
+  }
+  let fields = rawRegion.split(', ');
+  if (fields.length == 2) {
+    let code = fields[1];
+    if (REGION_CODES.hasOwnProperty(country) && REGION_CODES[country].hasOwnProperty(code)) {
+      return REGION_CODES[country][code];
+    }
+  }
+  return rawRegion;
+}
+
 function parseAndLowerStr(rawStr) {
-  if (rawStr === '') {
+  let trimmedStr = rawStr.trim();
+  if (trimmedStr === '') {
     return null;
   } else {
-    return rawStr.toLowerCase();
+    return trimmedStr.toLowerCase();
   }
 }
 
 function strToInt(intStr) {
-  if (intStr === '') {
+  if (intStr.trim() === '') {
     return null;
   } else {
     return parseInt(intStr);
+  }
+}
+
+function addToTotals(tableData, country, counts) {
+  for (let area of [tableData['world'], tableData[country]]) {
+    if (area.hasOwnProperty('__all__')) {
+      let totals = area['__all__'];
+      if (counts.length !== totals.length) {
+        throw `Invalid raw data: Different count lengths (${counts.length} != ${totals.length}).`;
+      }
+      for (let i = 0; i < counts.length; i++) {
+        totals[i] += counts[i];
+      }
+    } else {
+      area['__all__'] = counts.slice();
+    }
   }
 }
 
@@ -456,9 +532,17 @@ function getEnteredCountries() {
   let countries = [];
   const countryInputElems = document.getElementsByClassName('country-input');
   for (let countryInputElem of countryInputElems) {
-    let country = countryInputElem.value.toLowerCase();
+    let country = countryInputElem.value.trim().toLowerCase();
     if (TRANSLATIONS.hasOwnProperty(country)) {
       country = TRANSLATIONS[country];
+    }
+    let possibleCode = country.toUpperCase();
+    for (let countryName of Object.keys(REGION_CODES)) {
+      let regionCodes = REGION_CODES[countryName];
+      if (regionCodes.hasOwnProperty(possibleCode)) {
+        country = regionCodes[possibleCode];
+        break;
+      }
     }
     countries.push(country);
   }
