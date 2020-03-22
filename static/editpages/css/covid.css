@@ -7,24 +7,24 @@
   color: red;
 }
 
-#country-list > p {
+#place-list > p {
   margin-bottom: 3px;
 }
 
-.country-delete {
+.place-delete {
   padding: 4px 8px;
   margin-bottom: 2px;
 }
 
-.country-alert {
+.place-alert {
   margin-left: 10px;
 }
 
-#add-country, #plot-btn {
+#add-place, #plot-btn {
   display: block;
 }
 
-#add-country {
+#add-place {
   margin: 5px 0;
 }
 

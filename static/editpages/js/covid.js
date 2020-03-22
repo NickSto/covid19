@@ -10,7 +10,6 @@ const PLOT_LAYOUT = {
 };
 const STAT_NAMES = {'cases':'Confirmed', 'deaths':'Deaths', 'recovered':'Recovered'};
 let PLACES = null;
-let REGIONS = {};
 let REGION_CODES = {};
 let TRANSLATIONS = {};
 
@@ -34,10 +33,8 @@ function initPlaces(event) {
       }
       if (countryData.hasOwnProperty('regions')) {
         let regionCodes = {};
-        for (let region of Object.keys(countryData.regions)) {
+        for (let region in countryData.regions) {
           let regionData = countryData.regions[region];
-          // Compile lookup table mapping regions to countries.
-          REGIONS[region] = country;
           // Compile lookup table for postal codes.
           if (regionData.hasOwnProperty('code')) {
             regionCodes[regionData.code] = region;
@@ -62,9 +59,9 @@ function loadDataAndWireUI() {
   let data = {'dates':null, 'counts':{}};
   loadData(data);
 
-  const addCountryElem = document.getElementById('add-country');
-  addCountryElem.addEventListener('click', addCountryInput);
-  addCountryInput(null, 'World');
+  const addPlaceElem = document.getElementById('add-place');
+  addPlaceElem.addEventListener('click', addPlaceInput);
+  addPlaceInput(null, 'World');
   const plotBtnElem = document.getElementById('plot-btn');
   plotBtnElem.addEventListener('click', event => plot(event, data));
   const optionsElem = document.getElementById('options');
@@ -74,7 +71,7 @@ function loadDataAndWireUI() {
 
 function loadData(data) {
   let loadStates = [];
-  for (let stat of Object.keys(STAT_NAMES)) {
+  for (let stat in STAT_NAMES) {
     let statName = STAT_NAMES[stat];
     makeRequest(
       `${DATA_URL_BASE}-${statName}.csv`,
@@ -101,7 +98,7 @@ function receiveData(xhr, data, stat, loadStates) {
     throw `Request for ${stat} data failed: ${xhr.status}: ${xhr.statusText}`;
   }
   if (isDoneLoading(loadStates)) {
-    plotCountries(data, ['world']);
+    plotPlaces(data, [['world','__all__']]);
   }
 }
 
@@ -109,27 +106,17 @@ function isDoneLoading(loadStates) {
   return loadStates.length === 3 && loadStates.every(s => s === 'loaded');
 }
 
-function plotCountries(data, countries) {
+function plotPlaces(data, places) {
   let plotData = [];
 
   let options = getOptions();
 
-  // Check if each country is valid, and if so, get its plot data.
-  // If it's invalid, alert the user.
-  for (let country of countries) {
-    if (data.counts.hasOwnProperty(country) || REGIONS.hasOwnProperty(country)) {
-      setCountryAlert(country, true);
-      try {
-        let countryData = getCountryPlotData(country, data, options);
-        plotData.push(countryData);
-      } catch(error) {
-        console.error(error);
-      }
-    } else if (country && country.trim() !== '') {
-      console.error(`Cound not find country ${country}.`);
-      setCountryAlert(country, false);
-    } else {
-      setCountryAlert(country, true);
+  for (let [country, region] of places) {
+    try {
+      let placeData = getPlacePlotData(country, region, data, options);
+      plotData.push(placeData);
+    } catch(error) {
+      console.error(error);
     }
   }
 
@@ -179,21 +166,16 @@ function getPlotDescription(options) {
   return prefix+unit+suffix;
 }
 
-function getCountryPlotData(country, data, options) {
-  let region = '__all__';
+function getPlacePlotData(country, region, data, options) {
   let displayName;
-  if (data.counts.hasOwnProperty(country)) {
+  if (region === '__all__') {
     displayName = PLACES[country].displayName;
-  } else if (REGIONS.hasOwnProperty(country)) {
-    region = country;
-    country = REGIONS[country];
-    displayName = PLACES[country].regions[region].displayName;
   } else {
-    throw `No country or region found for ${country}`;
+    displayName = PLACES[country].regions[region].displayName;
   }
   // Get the raw confirmed cases counts.
   let dates = data.dates;
-  let counts = getCountryCounts(data.counts[country][region], options.dataType);
+  let counts = getPlaceCounts(data.counts[country][region], options.dataType);
   [dates, counts] = rmNulls(dates, counts);
   // Apply the requested transformations.
   let yVals = null;
@@ -211,13 +193,13 @@ function getCountryPlotData(country, data, options) {
   return {name:displayName, x:dates, y:yVals}
 }
 
-function getCountryCounts(allCountryCounts, dataType) {
+function getPlaceCounts(allPlaceCounts, dataType) {
   if (dataType === 'mortality') {
-    let cases = allCountryCounts.cases;
-    let deaths = allCountryCounts.deaths;
+    let cases = allPlaceCounts.cases;
+    let deaths = allPlaceCounts.deaths;
     return countsToMortality(cases, deaths);
   } else {
-    return allCountryCounts[dataType];
+    return allPlaceCounts[dataType];
   }
 }
 
@@ -434,11 +416,11 @@ function addData(data, stat, tableData, dates) {
     compareDates(dates, data['dates']);
   }
   let counts = data['counts'];
-  for (let country of Object.keys(tableData)) {
+  for (let country in tableData) {
     if (! counts.hasOwnProperty(country)) {
       counts[country] = {};
     }
-    for (let region of Object.keys(tableData[country])) {
+    for (let region in tableData[country]) {
       if (! counts[country].hasOwnProperty(region)) {
         counts[country][region] = {};
       }
@@ -485,87 +467,113 @@ function plot(event, data) {
   if (typeof event !== 'undefined') {
     event.preventDefault();
   }
-  let countries = getEnteredCountries();
-  plotCountries(data, countries);
+  let places = getEnteredPlaces();
+  plotPlaces(data, places);
 }
 
-function addCountryInput(event, country=null) {
+function addPlaceInput(event, place=null) {
   if (typeof event !== 'undefined' && event) {
     event.preventDefault();
   }
-  const countryListElem = document.getElementById('country-list');
-  let countryContainerElem = document.createElement('p');
-  let countryDeleteElem = document.createElement('button');
-  countryDeleteElem.classList.add('country-delete','btn','btn-sm','btn-default');
-  countryDeleteElem.textContent = '✕';
-  countryDeleteElem.title = 'delete';
-  countryDeleteElem.addEventListener('click', deleteCountryInput);
-  countryContainerElem.appendChild(countryDeleteElem);
-  let countryInputElem = document.createElement('input');
-  countryInputElem.classList.add('country-input');
-  countryInputElem.type = 'text';
-  countryInputElem.placeholder = 'Italy, Germany, etc.';
-  if (country) {
-    countryInputElem.value = country;
+  const placeListElem = document.getElementById('place-list');
+  let placeContainerElem = document.createElement('p');
+  let placeDeleteElem = document.createElement('button');
+  placeDeleteElem.classList.add('place-delete','btn','btn-sm','btn-default');
+  placeDeleteElem.textContent = '✕';
+  placeDeleteElem.title = 'delete';
+  placeDeleteElem.addEventListener('click', deletePlaceInput);
+  placeContainerElem.appendChild(placeDeleteElem);
+  let placeInputElem = document.createElement('input');
+  placeInputElem.classList.add('place-input');
+  placeInputElem.type = 'text';
+  placeInputElem.placeholder = 'Italy, New York, etc.';
+  if (place) {
+    placeInputElem.value = place;
   }
-  countryContainerElem.appendChild(countryInputElem);
-  let countryAlertElem = document.createElement('span');
-  countryAlertElem.classList.add('country-alert', 'error', 'hidden');
-  countryAlertElem.textContent = "Couldn't find this country in the data. Try checking the spelling.";
-  countryContainerElem.appendChild(countryAlertElem);
-  countryListElem.appendChild(countryContainerElem);
+  placeContainerElem.appendChild(placeInputElem);
+  let placeAlertElem = document.createElement('span');
+  placeAlertElem.classList.add('place-alert', 'error', 'hidden');
+  placeAlertElem.textContent = "Did not recognize this place. Try checking the spelling.";
+  placeContainerElem.appendChild(placeAlertElem);
+  placeListElem.appendChild(placeContainerElem);
 }
 
-function deleteCountryInput(event) {
+function deletePlaceInput(event) {
   if (typeof event !== 'undefined') {
     event.preventDefault();
   }
-  let countryDeleteElem = event.target;
-  if (!(countryDeleteElem.tagName === 'BUTTON' && countryDeleteElem.classList.contains('country-delete'))) {
-    console.error(`deleteCountryInput() called on wrong element (a ${countryDeleteElem.tagName})`);
+  let placeDeleteElem = event.target;
+  if (!(placeDeleteElem.tagName === 'BUTTON' && placeDeleteElem.classList.contains('place-delete'))) {
+    console.error(`deletePlaceInput() called on wrong element (a ${placeDeleteElem.tagName})`);
     return;
   }
-  countryDeleteElem.parentElement.remove();
+  placeDeleteElem.parentElement.remove();
 }
 
-function getEnteredCountries() {
-  let countries = [];
-  const countryInputElems = document.getElementsByClassName('country-input');
-  for (let countryInputElem of countryInputElems) {
-    let country = countryInputElem.value.trim().toLowerCase();
-    if (TRANSLATIONS.hasOwnProperty(country)) {
-      country = TRANSLATIONS[country];
-    }
-    let possibleCode = country.toUpperCase();
-    for (let countryName of Object.keys(REGION_CODES)) {
-      let regionCodes = REGION_CODES[countryName];
-      if (regionCodes.hasOwnProperty(possibleCode)) {
-        country = regionCodes[possibleCode];
-        break;
-      }
-    }
-    countries.push(country);
-  }
-  return countries;
-}
-
-function setCountryAlert(country, valid) {
-  const countryInputElems = document.getElementsByClassName('country-input');
-  for (let countryInputElem of countryInputElems) {
-    let thisCountry = countryInputElem.value.toLowerCase();
-    if (TRANSLATIONS.hasOwnProperty(thisCountry)) {
-      thisCountry = TRANSLATIONS[thisCountry];
-    }
-    if (thisCountry === country) {
-      let countryAlertElem = countryInputElem.parentElement.querySelector('.country-alert');
-      if (valid) {
-        countryAlertElem.classList.add('hidden');
+function getEnteredPlaces() {
+  let places = [];
+  const placeInputElems = document.getElementsByClassName('place-input');
+  for (let placeInputElem of placeInputElems) {
+    let placeStr = placeInputElem.value.trim();
+    if (placeStr === '') {
+      setPlaceAlert(placeInputElem, true);
+    } else {
+      let [country, region] = parsePlace(placeStr);
+      if (country === null || region === null) {
+        setPlaceAlert(placeInputElem, false);
       } else {
-        countryAlertElem.classList.remove('hidden');
+        setPlaceAlert(placeInputElem, true);
+        places.push([country, region]);
       }
-      return;
     }
   }
+  return places;
+}
+
+function parsePlace(placeStr) {
+  let country = null;
+  let region = null;
+  let rawPlace = placeStr.toLowerCase();
+  if (TRANSLATIONS.hasOwnProperty(rawPlace)) {
+    rawPlace = TRANSLATIONS[rawPlace];
+  }
+  // Is it a postal code?
+  let possibleCode = placeStr.toUpperCase();
+  for (let country in REGION_CODES) {
+    let regionCodes = REGION_CODES[country];
+    if (regionCodes.hasOwnProperty(possibleCode)) {
+      region = regionCodes[possibleCode];
+      return [country, region];
+    }
+  }
+  // Is it a country?
+  if (PLACES.hasOwnProperty(rawPlace)) {
+    country = rawPlace;
+    region = '__all__';
+    return [country, region];
+  }
+  // Is it a region?
+  for (let country in PLACES) {
+    let countryData = PLACES[country];
+    if (countryData.hasOwnProperty('regions')) {
+      if (countryData.regions.hasOwnProperty(rawPlace)) {
+        region = rawPlace;
+        return [country, region];
+      }
+    }
+  }
+  console.error(`Could not find place "${placeStr}".`);
+  return [country, region];
+}
+
+function setPlaceAlert(placeInputElem, valid) {
+  let placeAlertElem = placeInputElem.parentElement.querySelector('.place-alert');
+  if (valid) {
+    placeAlertElem.classList.add('hidden');
+  } else {
+    placeAlertElem.classList.remove('hidden');
+  }
+  return;
 }
 
 function getOptions() {
