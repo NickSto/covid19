@@ -313,10 +313,8 @@ function parseTable(rawTable) {
       if (counts.length !== dates.length) {
         throw `Invalid raw data: counts.length (${counts.length}) != dates.length (${dates.length}).`;
       }
-      if (! tableData.hasOwnProperty(country)) {
-        tableData[country] = {};
-      }
-      if (tableData[country].hasOwnProperty(region)) {
+      let countryCounts = getOrMakeCountryCounts(tableData, country);
+      if (countryCounts.hasOwnProperty(region)) {
         // Are there already counts for this region?
         if (region === '__all__') {
           // If this is a country-wide row, there shouldn't already be a country-wide entry in the
@@ -327,10 +325,10 @@ function parseTable(rawTable) {
         // If there are already counts for this region, add the new ones to them.
         // This can happen for county-level data before they stopped including them on March 10.
         for (let i = 0; i < counts.length; i++) {
-          tableData[country][region][i] += counts[i];
+          countryCounts[region][i] += counts[i];
         }
       } else {
-        tableData[country][region] = counts;
+        countryCounts[region] = counts;
       }
       // Add to area totals: world and country.
       addToTotals(tableData, country, counts);
@@ -367,8 +365,8 @@ function parseRegion(rawRegion, country) {
     return TRANSLATIONS[rawRegion];
   }
   let fields = rawRegion.split(', ');
-  if (fields.length == 2) {
-    let code = fields[1];
+  if (fields.length === 2) {
+    let code = fields[1].toUpperCase();
     if (REGION_CODES.hasOwnProperty(country) && REGION_CODES[country].hasOwnProperty(code)) {
       return REGION_CODES[country][code];
     }
@@ -391,6 +389,17 @@ function strToInt(intStr) {
   } else {
     return parseInt(intStr);
   }
+}
+
+function getOrMakeCountryCounts(tableData, country) {
+  let countryCounts;
+  if (tableData.hasOwnProperty(country)) {
+    countryCounts = tableData[country];
+  } else {
+    countryCounts = {};
+    tableData[country] = countryCounts;
+  }
+  return countryCounts;
 }
 
 function addToTotals(tableData, country, counts) {
