@@ -304,14 +304,21 @@ function parseTable(rawTable) {
     } else {
       // Parse a data row, store the counts.
       let rawRegion = parseAndLowerStr(row[0]);
-      let country = parseAndLowerStr(row[1]);
+      let rawCountry = parseAndLowerStr(row[1]);
       let counts = row.slice(4).map(strToInt);
-      if (TRANSLATIONS.hasOwnProperty(country)) {
-        country = TRANSLATIONS[country];
+      let country;
+      if (TRANSLATIONS.hasOwnProperty(rawCountry)) {
+        country = TRANSLATIONS[rawCountry];
+      } else {
+        country = rawCountry;
       }
       let region = parseRegion(rawRegion, country);
       if (counts.length !== dates.length) {
         throw `Invalid raw data: counts.length (${counts.length}) != dates.length (${dates.length}).`;
+      }
+      // Ignore some known duplicates in their data.
+      if (rawCountry === 'cabo verde' || rawCountry === 'timor-leste') {
+        continue;
       }
       let countryCounts = getOrMakeCountryCounts(tableData, country);
       if (countryCounts.hasOwnProperty(region)) {
