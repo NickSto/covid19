@@ -161,7 +161,7 @@ function getPlotDescription(options) {
     suffix = ' change per day';
   }
   if (options.perCapita && options.totals) {
-    unit = unit.replace('s','')+' rate';
+    unit = unit.replace(/s$/,'')+' rate';
   }
   return prefix+unit+suffix;
 }
@@ -366,7 +366,7 @@ function parseRegion(rawRegion, country) {
   }
   let fields = rawRegion.split(', ');
   if (fields.length === 2) {
-    let code = fields[1].toUpperCase();
+    let code = fields[1].replace(/\./g,'').toUpperCase();
     if (REGION_CODES.hasOwnProperty(country) && REGION_CODES[country].hasOwnProperty(code)) {
       return REGION_CODES[country][code];
     }
