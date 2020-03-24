@@ -81,6 +81,7 @@ function loadData(data) {
 }
 
 function receiveData(xhr, data, stat, loadStates) {
+  console.log(`Received response from ${xhr.responseURL}`);
   if (xhr.status == 200) {
     let rawTableData = Plotly.d3.csv.parseRows(xhr.responseText);
     try {
@@ -284,7 +285,8 @@ function makeRequest(url, callback, respType='') {
 
 function parseTable(rawTable) {
   let tableData = {'world':{}};
-  let dates = null;
+  let dates;
+  let seenWholeCountries = {};
   let rowNum = 0;
   for (let row of rawTable) {
     rowNum++;
@@ -316,9 +318,13 @@ function parseTable(rawTable) {
       if (counts.length !== dates.length) {
         throw `Invalid raw data: counts.length (${counts.length}) != dates.length (${dates.length}).`;
       }
-      // Ignore some known duplicates in their data.
-      if (rawCountry === 'cabo verde' || rawCountry === 'timor-leste') {
-        continue;
+      // Sometimes they have duplicate entries for whole countries. Skip them.
+      if (region === '__all__') {
+        if (seenWholeCountries.hasOwnProperty(country)) {
+          console.error(`Duplicate entry seen for ${country}`);
+          continue;
+        }
+        seenWholeCountries[country] = true;
       }
       let countryCounts = getOrMakeCountryCounts(tableData, country);
       if (countryCounts.hasOwnProperty(region)) {

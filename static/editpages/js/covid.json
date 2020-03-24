@@ -45,7 +45,7 @@
       "pennsylvania": {"displayName": "Pennsylvania", "population": 12801989, "code": "PA"},
       "illinois": {"displayName": "Illinois", "population": 12671821, "code": "IL"},
       "ohio": {"displayName": "Ohio", "population": 11689100, "code": "OH"},
-      "georgia": {"displayName": "Georgia (state)", "population": 10617423, "code": "GA"},
+      "georgia": {"displayName": "Georgia", "population": 10617423, "code": "GA"},
       "north carolina": {"displayName": "North Carolina", "population": 10488084, "code": "NC"},
       "michigan": {"displayName": "Michigan", "population": 9986857, "code": "MI"},
       "new jersey": {"displayName": "New Jersey", "population": 8882190, "code": "NJ"},
