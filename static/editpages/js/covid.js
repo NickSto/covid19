@@ -1,7 +1,10 @@
 
+//TODO: Switch to Corona Data Scraper: https://coronadatascraper.com/timeseries-byLocation.json
+
+
 const DATA_URL_BASE = (
-  'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/'+
-  'csse_covid_19_time_series/time_series_19-covid'
+  'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/archived_data/'+
+  'archived_time_series/time_series_19-covid'
 );
 const PLOT_LAYOUT = {
   margin: {t:0, b:0, l:0, r:0},
@@ -74,7 +77,7 @@ function loadData(data) {
   for (let stat in STAT_NAMES) {
     let statName = STAT_NAMES[stat];
     makeRequest(
-      `${DATA_URL_BASE}-${statName}.csv`,
+      `${DATA_URL_BASE}-${statName}_archived_0325.csv`,
       event => receiveData(event.target, data, stat, loadStates)
     );
   }
