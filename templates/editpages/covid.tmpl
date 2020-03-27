@@ -105,10 +105,10 @@
       </section>
     </div>
 
-    <a id="json-link" class="hidden" href="{% static 'editpages/js/covid.json' %}">JSON data</a>
+    <a id="json-link" class="hidden" href="{% static 'editpages/js/covid/places.json' %}">JSON data</a>
 {% endblock %}
 
 {% block javascript %}
       <script src="https://cdn.plot.ly/plotly-latest.min.js"></script>
-      <script src="{% static 'editpages/js/covid.js' %}?via=html"></script>
+      <script src="{% static 'editpages/js/covid/main.js' %}?via=html"></script>
 {% endblock %}
