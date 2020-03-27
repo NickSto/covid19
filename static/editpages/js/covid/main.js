@@ -14,7 +14,7 @@ function init() {
 function loadDataAndWireUI() {
   let data = {'dates':null, 'counts':{}};
   Loader.loadData(data, () => Plotter.plotPlaces(data, DEFAULT_PLACES));
-  UI.wireUI(data);
+  UI.wireUI(data, DEFAULT_PLACES);
 }
 
 window.addEventListener('load', init, false);

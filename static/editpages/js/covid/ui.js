@@ -1,10 +1,18 @@
 
 import * as Loader from './loader.js';
 
-export function wireUI(data) {
+export function wireUI(data, defaultPlaces) {
   const addPlaceElem = document.getElementById('add-place');
   addPlaceElem.addEventListener('click', addPlaceInput);
-  addPlaceInput(null, 'World');
+  for (let [country, region] of defaultPlaces) {
+    let place;
+    if (region === '__all__') {
+      place = Loader.PLACES[country].displayName;
+    } else {
+      place = Loader.PLACES[country].regions[region].displayName;
+    }
+    addPlaceInput(null, place);
+  }
   const plotBtnElem = document.getElementById('plot-btn');
   plotBtnElem.addEventListener('click', event => plot(event, data));
   const optionsElem = document.getElementById('options');
