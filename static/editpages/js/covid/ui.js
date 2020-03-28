@@ -1,5 +1,6 @@
 
 import * as Loader from './loader.js';
+import * as Plotter from './plotter.js';
 
 export function wireUI(data, defaultPlaces) {
   const addPlaceElem = document.getElementById('add-place');
@@ -25,7 +26,7 @@ function plot(event, data) {
     event.preventDefault();
   }
   let places = getEnteredPlaces();
-  plotPlaces(data, places);
+  Plotter.plotPlaces(data, places);
 }
 
 function addPlaceInput(event, place=null) {
