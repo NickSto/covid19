@@ -7,6 +7,48 @@ export const PLACES = new Map();
 export const REGION_CODES = new Map();
 export const TRANSLATIONS = new Map();
 
+export function makeEmptyData() {
+  return {
+    dates: [],
+    counts: new MultiKeyMap(),
+    places: new MultiKeyMap(),
+  }
+}
+
+export class MultiKeyMap {
+  constructor() {
+    this._data = new Map();
+  }
+  get(keys) {
+    let levelValue = this._data;
+    for (let key of keys) {
+      if (! levelValue instanceof Map) {
+        throw `Too many keys in [${keys}]`;
+      }
+      if (levelValue.has(key)) {
+        levelValue = levelValue.get(key);
+      } else {
+        return undefined;
+      }
+    }
+    return levelValue;
+  }
+  set(keys, value) {
+    let levelValue = this._data;
+    let keysMinusOne = keys.slice(0,keys.length-1);
+    for (let key of keysMinusOne) {
+      if (! levelValue.has(key)) {
+        levelValue.set(key, new Map());
+      }
+      levelValue = levelValue.get(key);
+    }
+    let key = keys[keys.length-1];
+    levelValue.set(key, value);
+  }
+}
+
+export const loadData = LoaderJHU.loadData;
+
 export function initPlaces(event, callback) {
   // Load constants from external file.
   let xhr = event.target;
@@ -65,8 +107,6 @@ function parsePlaces(places, regionCodes, translations) {
     regionCodes.set(country, countryRegionCodes);
   }
 }
-
-export const loadData = LoaderJHU.loadData;
 
 export function makeRequest(url, callback, respType='') {
   let request = new XMLHttpRequest();
