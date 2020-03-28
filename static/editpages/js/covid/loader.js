@@ -9,46 +9,66 @@ const DATA_URL_BASE = (
 );
 const STAT_NAMES = {'cases':'Confirmed', 'deaths':'Deaths', 'recovered':'Recovered'};
 
-export let PLACES = null;
-export let REGION_CODES = {};
-export let TRANSLATIONS = {};
+export const PLACES = new Map();
+export const REGION_CODES = new Map();
+export const TRANSLATIONS = new Map();
 
 export function initPlaces(event, callback) {
   // Load constants from external file.
   let xhr = event.target;
   if (xhr.status == 200) {
-    PLACES = xhr.response;
-    for (let country in PLACES) {
-      // Compile translation table for alternate country names.
-      let countryData = PLACES[country];
-      if (countryData.hasOwnProperty('aliases')) {
-        for (let alias of countryData.aliases) {
-          TRANSLATIONS[alias] = country;
-        }
-      }
-      if (countryData.hasOwnProperty('regions')) {
-        let regionCodes = {};
-        for (let region in countryData.regions) {
-          let regionData = countryData.regions[region];
-          // Compile lookup table for postal codes.
-          if (regionData.hasOwnProperty('code')) {
-            regionCodes[regionData.code] = region;
-          }
-          // Add region aliases.
-          if (regionData.hasOwnProperty('aliases')) {
-            for (let alias of regionData.aliases) {
-              TRANSLATIONS[alias] = region;
-            }
-          }
-        }
-        REGION_CODES[country] = regionCodes;
-      }
-    }
+    placesToMap(xhr.response, PLACES);
+    parsePlaces(PLACES, REGION_CODES, TRANSLATIONS);
     if (typeof callback === 'function') {
       callback();
     }
   } else {
     console.error(`Request for ${xhr.responseUrl} failed: ${xhr.status}: ${xhr.statusText}`);
+  }
+}
+
+function placesToMap(placesObj, placesMap) {
+  objToMapShallow(placesObj, placesMap);
+  for (let [country, countryData] of placesMap.entries()) {
+    // Some keys are optional, to keep the JSON human-readable.
+    // But make them all mandatory in the data structure.
+    if (! countryData.hasOwnProperty('aliases')) {
+      countryData.aliases = [];
+    }
+    if (countryData.hasOwnProperty('regions')) {
+      countryData.regions = objToMapShallow(countryData.regions);
+    } else {
+      countryData.regions = new Map();
+    }
+    for (let [region, regionData] of countryData.regions.entries()) {
+      if (! regionData.hasOwnProperty('aliases')) {
+        regionData.aliases = [];
+      }
+      if (! regionData.hasOwnProperty('code')) {
+        regionData.code = null;
+      }
+    }
+  }
+}
+
+function parsePlaces(places, regionCodes, translations) {
+  for (let [country, countryData] of places.entries()) {
+    // Compile translation table for alternate country names.
+    for (let alias of countryData.aliases) {
+      translations.set(alias, country);
+    }
+    for (let [region, regionData] of countryData.regions.entries()) {
+      // Compile lookup table for postal codes.
+      let countryRegionCodes = new Map();
+      if (regionData.code !== null) {
+        countryRegionCodes.set(regionData.code, region);
+      }
+      // Add region aliases.
+      for (let alias of regionData.aliases) {
+        translations.set(alias, region);
+      }
+      regionCodes.set(country, countryRegionCodes);
+    }
   }
 }
 
@@ -101,7 +121,7 @@ function isDoneLoading(loadStates) {
 function parseTable(rawTable) {
   let tableData = {'world':{}};
   let dates;
-  let seenWholeCountries = {};
+  let seenWholeCountries = new Set();
   let rowNum = 0;
   for (let row of rawTable) {
     rowNum++;
@@ -135,11 +155,11 @@ function parseTable(rawTable) {
       }
       // Sometimes they have duplicate entries for whole countries. Skip them.
       if (region === '__all__') {
-        if (seenWholeCountries.hasOwnProperty(country)) {
+        if (seenWholeCountries.has(country)) {
           console.error(`Duplicate entry seen for ${country}`);
           continue;
         }
-        seenWholeCountries[country] = true;
+        seenWholeCountries.add(country);
       }
       let countryCounts = getOrMakeCountryCounts(tableData, country);
       if (countryCounts.hasOwnProperty(region)) {
@@ -275,4 +295,38 @@ function compareDates(dates1, dates2) {
       throw `Dates not the same in different tables (${dates1[i]} != ${dates2[i]}).`;
     }
   }
+}
+
+function objToMapShallow(obj, map=null) {
+  if (map === null) {
+    map = new Map();
+  }
+  for (let [key, value] of Object.entries(obj)) {
+    map.set(key, value);
+  }
+  return map;
+}
+
+// Naive deep copy of an object to a Map.
+// It will only create independent copies of objects (as maps) and arrays (as arrays). All other
+// values will not be copied, and instead included by reference.
+function objToMap(obj, map=null) {
+  if (map === null) {
+    map = new Map();
+  }
+  for (let [key, rawValue] of Object.entries(obj)) {
+    let value;
+    if (Array.isArray(rawValue)) {
+      value = [];
+      for (let element of rawValue) {
+        value.push(objToMap(element));
+      }
+    } else if (typeof rawValue === 'object') {
+      value = objToMap(rawValue);
+    } else {
+      value = rawValue;
+    }
+    map.set(key, value);
+  }
+  return map;
 }

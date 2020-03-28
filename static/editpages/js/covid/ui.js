@@ -8,9 +8,9 @@ export function wireUI(data, defaultPlaces) {
   for (let [country, region] of defaultPlaces) {
     let place;
     if (region === '__all__') {
-      place = Loader.PLACES[country].displayName;
+      place = Loader.PLACES.get(country).displayName;
     } else {
-      place = Loader.PLACES[country].regions[region].displayName;
+      place = Loader.PLACES.get(country).regions.get(region).displayName;
     }
     addPlaceInput(null, place);
   }
@@ -92,32 +92,28 @@ function parsePlace(placeStr) {
   let country = null;
   let region = null;
   let rawPlace = placeStr.toLowerCase();
-  if (Loader.TRANSLATIONS.hasOwnProperty(rawPlace)) {
-    rawPlace = Loader.TRANSLATIONS[rawPlace];
-  }
-  // Is it a postal code?
-  let possibleCode = placeStr.toUpperCase();
-  for (let country in Loader.REGION_CODES) {
-    let regionCodes = Loader.REGION_CODES[country];
-    if (regionCodes.hasOwnProperty(possibleCode)) {
-      region = regionCodes[possibleCode];
-      return [country, region];
-    }
+  if (Loader.TRANSLATIONS.has(rawPlace)) {
+    rawPlace = Loader.TRANSLATIONS.get(rawPlace);
   }
   // Is it a country?
-  if (Loader.PLACES.hasOwnProperty(rawPlace)) {
+  if (Loader.PLACES.has(rawPlace)) {
     country = rawPlace;
     region = '__all__';
     return [country, region];
   }
   // Is it a region?
-  for (let country in Loader.PLACES) {
-    let countryData = Loader.PLACES[country];
-    if (countryData.hasOwnProperty('regions')) {
-      if (countryData.regions.hasOwnProperty(rawPlace)) {
-        region = rawPlace;
-        return [country, region];
-      }
+  for (let [country, countryData] of Loader.PLACES.entries()) {
+    if (countryData.regions.has(rawPlace)) {
+      region = rawPlace;
+      return [country, region];
+    }
+  }
+  // Is it a postal code?
+  let possibleCode = placeStr.toUpperCase();
+  for (let [country, regionCodes] of Loader.REGION_CODES.entries()) {
+    if (regionCodes.has(possibleCode)) {
+      region = regionCodes.get(possibleCode);
+      return [country, region];
     }
   }
   console.error(`Could not find place "${placeStr}".`);

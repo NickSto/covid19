@@ -71,9 +71,9 @@ function getPlotDescription(options) {
 function getPlacePlotData(country, region, data, options) {
   let displayName;
   if (region === '__all__') {
-    displayName = Loader.PLACES[country].displayName;
+    displayName = Loader.PLACES.get(country).displayName;
   } else {
-    displayName = Loader.PLACES[country].regions[region].displayName;
+    displayName = Loader.PLACES.get(country).regions.get(region).displayName;
   }
   // Get the raw confirmed cases counts.
   let dates = data.dates;
@@ -149,9 +149,9 @@ function divideByPop(rawCounts, country, region) {
   let newCounts = [];
   let population;
   if (region === '__all__') {
-    population = Loader.PLACES[country].population;
+    population = Loader.PLACES.get(country).population;
   } else {
-    population = Loader.PLACES[country].regions[region].population;
+    population = Loader.PLACES.get(country).regions.get(region).population;
   }
   if (!population) {
     throw `No population found for ${country}/${region}.`;
