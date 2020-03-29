@@ -6,6 +6,7 @@ import * as LoaderCDS from './loader.cds.js';
 
 export const DIVISIONS = ['country', 'state', 'county', 'city'];
 export const PLACES = new Map();
+export const COUNTRY_CODES = new Map();
 export const REGION_CODES = new Map();
 export const TRANSLATIONS = new Map();
 
@@ -56,7 +57,7 @@ export function initPlaces(event, callback) {
   let xhr = event.target;
   if (xhr.status == 200) {
     placesToMap(xhr.response, PLACES);
-    parsePlaces(PLACES, REGION_CODES, TRANSLATIONS);
+    parsePlaces(PLACES, COUNTRY_CODES, REGION_CODES, TRANSLATIONS);
     if (typeof callback === 'function') {
       callback();
     }
@@ -70,6 +71,9 @@ function placesToMap(placesObj, placesMap) {
   for (let [country, countryData] of placesMap.entries()) {
     // Some keys are optional, to keep the JSON human-readable.
     // But make them all mandatory in the data structure.
+    if (! countryData.hasOwnProperty('iso3166')) {
+      countryData.iso3166 = null;
+    }
     if (! countryData.hasOwnProperty('aliases')) {
       countryData.aliases = [];
     }
@@ -89,8 +93,12 @@ function placesToMap(placesObj, placesMap) {
   }
 }
 
-function parsePlaces(places, regionCodes, translations) {
+function parsePlaces(places, countryCodes, regionCodes, translations) {
   for (let [country, countryData] of places.entries()) {
+    // Compile lookup table for ISO-3166 codes.
+    if (countryData.iso3166) {
+      countryCodes.set(countryData.iso3166, country);
+    }
     // Compile translation table for alternate country names.
     for (let alias of countryData.aliases) {
       translations.set(alias, country);

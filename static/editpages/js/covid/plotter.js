@@ -71,6 +71,10 @@ function getPlotDescription(options) {
 function getPlacePlotData(place, data, options) {
   // Get the raw confirmed cases counts.
   let dates = data.dates;
+  let placeCounts = data.counts.get(place);
+  if (! placeCounts) {
+    throw `Place ${place} not found.`;
+  }
   let counts = getPlaceCounts(data.counts.get(place), options.dataType);
   [dates, counts] = rmNulls(dates, counts);
   // Apply the requested transformations.

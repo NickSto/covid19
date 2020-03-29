@@ -57,9 +57,22 @@ function getPlaceKeys(rawPlaceData) {
   for (let division of Loader.DIVISIONS) {
     let value = null;
     if (rawPlaceData.hasOwnProperty(division)) {
-      let rawValue = rawPlaceData[division].toLowerCase();
-      if (rawValue !== '(unassigned)') {
-        value = rawValue;
+      let rawValue = rawPlaceData[division];
+      if (rawValue.toLowerCase() !== '(unassigned)') {
+        value = rawValue.toLowerCase();
+      }
+      if (division === 'country') {
+        if (Loader.COUNTRY_CODES.has(rawValue)) {
+          value = Loader.COUNTRY_CODES.get(rawValue);
+        }
+      } else if (division === 'state') {
+        let country = place[0];
+        if (Loader.REGION_CODES.has(country)) {
+          let countryRegionCodes = Loader.REGION_CODES.get(country);
+          if (countryRegionCodes.has(rawValue)) {
+            value = countryRegionCodes.get(rawValue);
+          }
+        }
       }
     }
     place.push(value);

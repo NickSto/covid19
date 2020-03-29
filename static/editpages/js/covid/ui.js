@@ -72,49 +72,35 @@ function getEnteredPlaces() {
   for (let placeContainerElem of placeContainerElems) {
     let place = [];
     for (let division of Loader.DIVISIONS) {
-      let key = null;
       const placeInputElem = placeContainerElem.querySelector(`.${division}-input`);
       let placeStr = placeInputElem.value.trim().toLowerCase();
-      if (placeStr) {
-        key = placeStr;
-      }
-      place.push(key);
+      let placeKey = parsePlace(placeStr, division, place);
+      place.push(placeKey);
     }
     places.push(place);
   }
   return places;
 }
 
-function parsePlace(placeStr) {
-  let country = null;
-  let region = null;
-  let rawPlace = placeStr.toLowerCase();
-  if (Loader.TRANSLATIONS.has(rawPlace)) {
-    rawPlace = Loader.TRANSLATIONS.get(rawPlace);
-  }
-  // Is it a country?
-  if (Loader.PLACES.has(rawPlace)) {
-    country = rawPlace;
-    region = '__all__';
-    return [country, region];
-  }
-  // Is it a region?
-  for (let [country, countryData] of Loader.PLACES.entries()) {
-    if (countryData.regions.has(rawPlace)) {
-      region = rawPlace;
-      return [country, region];
+function parsePlace(placeStr, division, place) {
+  if (division === 'country' || division === 'state') {
+    if (Loader.TRANSLATIONS.has(placeStr)) {
+      console.log('here2');
+      placeStr = Loader.TRANSLATIONS.get(placeStr);
     }
   }
-  // Is it a postal code?
-  let possibleCode = placeStr.toUpperCase();
-  for (let [country, regionCodes] of Loader.REGION_CODES.entries()) {
-    if (regionCodes.has(possibleCode)) {
-      region = regionCodes.get(possibleCode);
-      return [country, region];
+  if (division === 'state') {
+    let country = place[0];
+    let countryRegionCodes = Loader.REGION_CODES.get(country);
+    if (countryRegionCodes && countryRegionCodes.has(placeStr.toUpperCase())) {
+      return countryRegionCodes.get(placeStr.toUpperCase());
     }
   }
-  console.error(`Could not find place "${placeStr}".`);
-  return [country, region];
+  if (placeStr === '') {
+    return null;
+  } else {
+    return placeStr;
+  }
 }
 
 function setPlaceAlert(placeInputElem, valid) {
