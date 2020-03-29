@@ -13,9 +13,9 @@ export function plotPlaces(data, places) {
 
   let options = UI.getOptions();
 
-  for (let [country, region] of places) {
+  for (let place of places) {
     try {
-      let placeData = getPlacePlotData(country, region, data, options);
+      let placeData = getPlacePlotData(place, data, options);
       plotData.push(placeData);
     } catch(error) {
       console.error(error);
@@ -68,16 +68,10 @@ function getPlotDescription(options) {
   return prefix+unit+suffix;
 }
 
-function getPlacePlotData(country, region, data, options) {
-  let displayName;
-  if (region === '__all__') {
-    displayName = Loader.PLACES.get(country).displayName;
-  } else {
-    displayName = Loader.PLACES.get(country).regions.get(region).displayName;
-  }
+function getPlacePlotData(place, data, options) {
   // Get the raw confirmed cases counts.
   let dates = data.dates;
-  let counts = getPlaceCounts(data.counts[country][region], options.dataType);
+  let counts = getPlaceCounts(data.counts.get(place), options.dataType);
   [dates, counts] = rmNulls(dates, counts);
   // Apply the requested transformations.
   let yVals = null;
@@ -90,8 +84,9 @@ function getPlacePlotData(country, region, data, options) {
     yVals = counts;
   }
   if (options.perCapita) {
-    yVals = divideByPop(yVals, country, region);
+    yVals = divideByPop(yVals, data.places.get(place).population);
   }
+  let displayName = data.places.get(place).displayName;
   return {name:displayName, x:dates, y:yVals}
 }
 
@@ -101,7 +96,7 @@ function getPlaceCounts(allPlaceCounts, dataType) {
     let deaths = allPlaceCounts.deaths;
     return countsToMortality(cases, deaths);
   } else {
-    return allPlaceCounts[dataType];
+    return allPlaceCounts.get(dataType);
   }
 }
 
@@ -145,14 +140,8 @@ function getCountDiffs(counts) {
   return diffs;
 }
 
-function divideByPop(rawCounts, country, region) {
+function divideByPop(rawCounts, population) {
   let newCounts = [];
-  let population;
-  if (region === '__all__') {
-    population = Loader.PLACES.get(country).population;
-  } else {
-    population = Loader.PLACES.get(country).regions.get(region).population;
-  }
   if (!population) {
     throw `No population found for ${country}/${region}.`;
   }

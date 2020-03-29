@@ -3,7 +3,6 @@ import * as Loader from './loader.js';
 import * as UI from './ui.js';
 
 const DATA_URL = 'https://coronadatascraper.com/timeseries-byLocation.json';
-const DIVISIONS = ['country', 'state', 'county', 'city'];
 const START_DATE = new Date(2020, 0, 22);
 const NOW = new Date();
 
@@ -55,7 +54,7 @@ function parseRawData(rawData, data) {
 
 function getPlaceKeys(rawPlaceData) {
   let place = [];
-  for (let division of DIVISIONS) {
+  for (let division of Loader.DIVISIONS) {
     let value = null;
     if (rawPlaceData.hasOwnProperty(division)) {
       let rawValue = rawPlaceData[division].toLowerCase();
@@ -71,8 +70,8 @@ function getPlaceKeys(rawPlaceData) {
 function getDisplayName(placeData, place) {
   //TODO: Un-abbreviate countries and states using iso3166 and postal data.
   let displayNameParts = [];
-  for (let i = 0; i < DIVISIONS.length; i++) {
-    let division = DIVISIONS[i];
+  for (let i = 0; i < Loader.DIVISIONS.length; i++) {
+    let division = Loader.DIVISIONS[i];
     let placeKey = place[i];
     if (placeKey !== null) {
       displayNameParts.push(placeData[division]);

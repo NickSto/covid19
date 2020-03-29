@@ -5,13 +5,7 @@ import * as Plotter from './plotter.js';
 export function wireUI(data, defaultPlaces) {
   const addPlaceElem = document.getElementById('add-place');
   addPlaceElem.addEventListener('click', addPlaceInput);
-  for (let [country, region] of defaultPlaces) {
-    let place;
-    if (region === '__all__') {
-      place = Loader.PLACES.get(country).displayName;
-    } else {
-      place = Loader.PLACES.get(country).regions.get(region).displayName;
-    }
+  for (let place of defaultPlaces) {
     addPlaceInput(null, place);
   }
   const plotBtnElem = document.getElementById('plot-btn');
@@ -35,20 +29,24 @@ function addPlaceInput(event, place=null) {
   }
   const placeListElem = document.getElementById('place-list');
   let placeContainerElem = document.createElement('p');
+  placeContainerElem.classList.add('place-container');
   let placeDeleteElem = document.createElement('button');
   placeDeleteElem.classList.add('place-delete','btn','btn-sm','btn-default');
   placeDeleteElem.textContent = '✕';
   placeDeleteElem.title = 'delete';
   placeDeleteElem.addEventListener('click', deletePlaceInput);
   placeContainerElem.appendChild(placeDeleteElem);
-  let placeInputElem = document.createElement('input');
-  placeInputElem.classList.add('place-input');
-  placeInputElem.type = 'text';
-  placeInputElem.placeholder = 'Italy, New York, etc.';
-  if (place) {
-    placeInputElem.value = place;
+  for (let i = 0; i < Loader.DIVISIONS.length; i++) {
+    let division = Loader.DIVISIONS[i];
+    let placeInputElem = document.createElement('input');
+    placeInputElem.classList.add('place-input',`${division}-input`);
+    placeInputElem.type = 'text';
+    // placeInputElem.placeholder = 'Italy, New York, etc.';
+    if (place) {
+      placeInputElem.value = place[i];
+    }
+    placeContainerElem.appendChild(placeInputElem);
   }
-  placeContainerElem.appendChild(placeInputElem);
   let placeAlertElem = document.createElement('span');
   placeAlertElem.classList.add('place-alert', 'error', 'hidden');
   placeAlertElem.textContent = "Did not recognize this place. Try checking the spelling.";
@@ -70,20 +68,19 @@ function deletePlaceInput(event) {
 
 function getEnteredPlaces() {
   let places = [];
-  const placeInputElems = document.getElementsByClassName('place-input');
-  for (let placeInputElem of placeInputElems) {
-    let placeStr = placeInputElem.value.trim();
-    if (placeStr === '') {
-      setPlaceAlert(placeInputElem, true);
-    } else {
-      let [country, region] = parsePlace(placeStr);
-      if (country === null || region === null) {
-        setPlaceAlert(placeInputElem, false);
-      } else {
-        setPlaceAlert(placeInputElem, true);
-        places.push([country, region]);
+  const placeContainerElems = document.getElementsByClassName('place-container');
+  for (let placeContainerElem of placeContainerElems) {
+    let place = [];
+    for (let division of Loader.DIVISIONS) {
+      let key = null;
+      const placeInputElem = placeContainerElem.querySelector(`.${division}-input`);
+      let placeStr = placeInputElem.value.trim().toLowerCase();
+      if (placeStr) {
+        key = placeStr;
       }
+      place.push(key);
     }
+    places.push(place);
   }
   return places;
 }

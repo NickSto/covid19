@@ -2,7 +2,9 @@
 //TODO: Switch to Corona Data Scraper: https://coronadatascraper.com/timeseries-byLocation.json
 
 import * as LoaderJHU from './loader.jhu.js';
+import * as LoaderCDS from './loader.cds.js';
 
+export const DIVISIONS = ['country', 'state', 'county', 'city'];
 export const PLACES = new Map();
 export const REGION_CODES = new Map();
 export const TRANSLATIONS = new Map();
@@ -47,7 +49,7 @@ export class MultiKeyMap {
   }
 }
 
-export const loadData = LoaderJHU.loadData;
+export const loadData = LoaderCDS.loadData;
 
 export function initPlaces(event, callback) {
   // Load constants from external file.
