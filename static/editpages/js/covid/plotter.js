@@ -94,14 +94,14 @@ function getPlacePlotData(place, data, options) {
     }
     yVals = divideByPop(yVals, population);
   }
-  let displayName = data.places.get(place).displayName;
+  let displayName = Loader.PLACES.get(place).get('displayName');
   return {name:displayName, x:dates, y:yVals}
 }
 
 function getPlaceCounts(allPlaceCounts, dataType) {
   if (dataType === 'mortality') {
-    let cases = allPlaceCounts.cases;
-    let deaths = allPlaceCounts.deaths;
+    let cases = allPlaceCounts.get('cases');
+    let deaths = allPlaceCounts.get('deaths');
     return countsToMortality(cases, deaths);
   } else {
     return allPlaceCounts.get(dataType);

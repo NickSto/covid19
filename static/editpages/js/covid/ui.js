@@ -88,9 +88,10 @@ function parsePlace(placeStr, division, place) {
   }
   if (division === 'state') {
     let country = place[0];
-    let countryRegionCodes = Loader.REGION_CODES.get(country);
-    if (countryRegionCodes && countryRegionCodes.has(placeStr.toUpperCase())) {
-      return countryRegionCodes.get(placeStr.toUpperCase());
+    let regionCodes = Loader.PLACES.get([country,null,null,null]).get('codes');
+    let region = regionCodes.get(placeStr.toUpperCase());
+    if (region) {
+      return region;
     }
   }
   if (placeStr === '') {

@@ -1,56 +1,26 @@
 
 //TODO: Switch to Corona Data Scraper: https://coronadatascraper.com/timeseries-byLocation.json
 
+import * as Utils from './utils.js';
 import * as LoaderJHU from './loader.jhu.js';
 import * as LoaderCDS from './loader.cds.js';
+import * as LoaderNYT from './loader.nyt.js';
 
 export const DIVISIONS = ['country', 'state', 'county', 'city'];
-export const PLACES = new Map();
-export const COUNTRY_CODES = new Map();
-export const REGION_CODES = new Map();
+export const PLACES = new Utils.MultiKeyMap();
 export const TRANSLATIONS = new Map();
 
 export function makeEmptyData() {
   return {
     dates: [],
-    counts: new MultiKeyMap(),
-    places: new MultiKeyMap(),
+    counts: new Utils.MultiKeyMap(),
   }
 }
 
-export class MultiKeyMap {
-  constructor() {
-    this._data = new Map();
-  }
-  get(keys) {
-    let levelValue = this._data;
-    for (let key of keys) {
-      if (! levelValue instanceof Map) {
-        throw `Too many keys in [${keys}]`;
-      }
-      if (levelValue.has(key)) {
-        levelValue = levelValue.get(key);
-      } else {
-        return undefined;
-      }
-    }
-    return levelValue;
-  }
-  set(keys, value) {
-    let levelValue = this._data;
-    let keysMinusOne = keys.slice(0,keys.length-1);
-    for (let key of keysMinusOne) {
-      if (! levelValue.has(key)) {
-        levelValue.set(key, new Map());
-      }
-      levelValue = levelValue.get(key);
-    }
-    let key = keys[keys.length-1];
-    levelValue.set(key, value);
-  }
+export function loadData(data, callback) {
+  // TODO: Load in parallel, then merge results.
+  LoaderCDS.loadData(data, () => LoaderNYT.loadData(data, callback));
 }
-
-export const loadData = LoaderCDS.loadData;
 
 export function initPlaces(event, callback) {
   // Load constants from external file.
@@ -62,8 +32,8 @@ export function initPlaces(event, callback) {
         `${xhr.response}`
       );
     }
-    placesToMap(xhr.response, PLACES);
-    parsePlaces(PLACES, COUNTRY_CODES, REGION_CODES, TRANSLATIONS);
+    placesToMKM(xhr.response, PLACES);
+    parsePlaces(PLACES, TRANSLATIONS);
     if (typeof callback === 'function') {
       callback();
     }
@@ -72,56 +42,73 @@ export function initPlaces(event, callback) {
   }
 }
 
-function placesToMap(placesObj, placesMap) {
-  objToMapShallow(placesObj, placesMap);
-  for (let [country, countryData] of placesMap.entries()) {
+function placesToMKM(placesObj, placesMKM) {
+  for (let [country, countryData] of Object.entries(placesObj)) {
+    if (country === 'world') {
+      country = null;
+    }
+    let place = [country,null,null,null];
+    let countryMap = new Map();
+    for (let [key, value] of Object.entries(countryData)) {
+      if (key !== 'regions') {
+        countryMap.set(key, value);
+      }
+    }
     // Some keys are optional, to keep the JSON human-readable.
     // But make them all mandatory in the data structure.
-    if (! countryData.hasOwnProperty('iso3166')) {
-      countryData.iso3166 = null;
-    }
-    if (! countryData.hasOwnProperty('aliases')) {
-      countryData.aliases = [];
-    }
-    if (countryData.hasOwnProperty('regions')) {
-      countryData.regions = objToMapShallow(countryData.regions);
-    } else {
-      countryData.regions = new Map();
-    }
-    for (let [region, regionData] of countryData.regions.entries()) {
-      if (! regionData.hasOwnProperty('aliases')) {
-        regionData.aliases = [];
+    for (let [key, value] of [['iso3166',null],['aliases',[]]]) {
+      if (!countryMap.has(key)) {
+        countryMap.set(key,value);
       }
-      if (! regionData.hasOwnProperty('code')) {
-        regionData.code = null;
+    }
+    placesMKM.set(place, countryMap);
+    if (countryData.hasOwnProperty('regions')) {
+      for (let [region, regionData] of Object.entries(countryData.regions)) {
+        let place = [country,region,null,null];
+        let regionMap = new Map();
+        for (let [key, value] of Object.entries(regionData)) {
+          regionMap.set(key, value);
+        }
+        // Set values for mandatory keys.
+        for (let [key, value] of [['aliases',[]],['code',null]]) {
+          if (!regionMap.has(key)) {
+            regionMap.set(key,value);
+          }
+        }
+        placesMKM.set(place, regionMap);
       }
     }
   }
 }
 
-function parsePlaces(places, countryCodes, regionCodes, translations) {
-  for (let [country, countryData] of places.entries()) {
+function parsePlaces(places, translations) {
+  let worldData = places.get([null,null,null,null]);
+  let countryCodes = new Map();
+  for (let country of places.get([]).keys()) {
+    let countryData = places.get([country,null,null,null]);
     // Compile lookup table for ISO-3166 codes.
-    if (countryData.iso3166) {
-      countryCodes.set(countryData.iso3166, country);
+    if (countryData.get('iso3166')) {
+      countryCodes.set(countryData.get('iso3166'), country);
     }
     // Compile translation table for alternate country names.
-    for (let alias of countryData.aliases) {
+    for (let alias of countryData.get('aliases')) {
       translations.set(alias, country);
     }
-    let countryRegionCodes = new Map();
-    for (let [region, regionData] of countryData.regions.entries()) {
+    let regionCodes = new Map();
+    countryData.set('codes', regionCodes);
+    for (let region of places.get([country]).keys()) {
+      let regionData = places.get([country,region,null,null]);
       // Compile lookup table for postal codes.
-      if (regionData.code !== null) {
-        countryRegionCodes.set(regionData.code, region);
+      if (regionData.get('code')) {
+        regionCodes.set(regionData.get('code'), region);
       }
       // Add region aliases.
-      for (let alias of regionData.aliases) {
+      for (let alias of regionData.get('aliases')) {
         translations.set(alias, region);
       }
     }
-    regionCodes.set(country, countryRegionCodes);
   }
+  worldData.set('codes', countryCodes);
 }
 
 export function makeRequest(url, callback, respType='') {
