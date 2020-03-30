@@ -4,6 +4,7 @@ import * as UI from './ui.js';
 import * as Utils from './utils.js';
 
 const DATA_URL = 'https://raw.githubusercontent.com/nytimes/covid-19-data/master/us-states.csv';
+const STATS = {cases:3, deaths:4};
 
 export function loadData(data, callback) {
   Loader.makeRequest(
@@ -32,6 +33,10 @@ function receiveData(xhr, data, callback) {
 }
 
 function parseRawData(rawTable, data) {
+  let totals = new Map();
+  for (let stat of Object.keys(STATS)) {
+    totals.set(stat, []);
+  }
   let latestDay = 0;
   let rowNum = 0;
   for (let row of rawTable) {
@@ -42,26 +47,39 @@ function parseRawData(rawTable, data) {
       // Parse the columns.
       let date = Utils.parseDate(row[0]);
       let state = row[1].toLowerCase();
-      let cases = parseInt(row[3]);
-      let deaths = parseInt(row[4]);
+      // Collect the count values.
+      let theseCounts = new Map();
+      for (let [stat, column] of Object.entries(STATS)) {
+        let value = parseInt(row[column]);
+        theseCounts.set(stat, value);
+      }
       // Transform the raw data into what we need.
       let day = Utils.dateToDayNumber(date);
       let place = ['us',state,null,null];
+      // Get the counts for this place.
       let counts = data.counts.get(place);
       if (counts === undefined) {
         counts = new Map();
         data.counts.set(place, counts);
       }
-      for (let [stat, value] of [['cases',cases],['deaths',deaths]]) {
+      for (let [stat, value] of theseCounts.entries()) {
+        // Add these counts to the ones for this place.
         if (! counts.has(stat)) {
           counts.set(stat, []);
         }
         let countsArray = counts.get(stat);
         countsArray[day] = value;
+        // And add to the totals.
+        let statTotals = totals.get(stat);
+        if (statTotals[day] === undefined) {
+          statTotals[day] = 0;
+        }
+        statTotals[day] += value;
       }
       latestDay = Math.max(day,latestDay);
     }
   }
+  data.counts.set(['us',null,null,null], totals);
   Utils.extendDatesArray(data.dates, latestDay);
   return data;
 }
