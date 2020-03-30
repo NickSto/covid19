@@ -9,16 +9,13 @@ export function wireUI(data, defaultPlaces) {
     addPlaceInput(null, place);
   }
   const plotBtnElem = document.getElementById('plot-btn');
-  plotBtnElem.addEventListener('click', event => plot(event, data));
+  plotBtnElem.addEventListener('click', event => {event.preventDefault(); plotEnteredPlaces(data);});
   const optionsElem = document.getElementById('options');
   optionsElem.addEventListener('click', setValidOptions);
   setValidOptions();
 }
 
-function plot(event, data) {
-  if (typeof event !== 'undefined') {
-    event.preventDefault();
-  }
+export function plotEnteredPlaces(data) {
   let places = getEnteredPlaces();
   Plotter.plotPlaces(data, places);
 }
