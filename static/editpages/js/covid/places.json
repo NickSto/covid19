@@ -117,7 +117,11 @@
   "thailand": {"displayName": "Thailand", "population": 69037513, "iso3166": "THA"},
   "uk": {"displayName": "UK", "population": 67530172, "iso3166": "GBR", "aliases": ["britain", "united kingdom"]},
   "france": {"displayName": "France", "population": 65129728, "iso3166": "FRA"},
-  "italy": {"displayName": "Italy", "population": 60550075, "iso3166": "ITA"},
+  "italy": {"displayName": "Italy", "population": 60550075, "iso3166": "ITA",
+    "regions": {
+      "lombardy": {"displayName": "Lombardy", "population": 10078012, "aliases": ["lombardia"]}
+    }
+  },
   "south africa": {"displayName": "South Africa", "population": 58558270, "iso3166": "ZAF"},
   "tanzania": {"displayName": "Tanzania", "population": 58005463, "iso3166": "TZA"},
   "myanmar": {"displayName": "Myanmar", "population": 54045420, "iso3166": "MMR"},
