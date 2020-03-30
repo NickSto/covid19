@@ -56,6 +56,12 @@ export function initPlaces(event, callback) {
   // Load constants from external file.
   let xhr = event.target;
   if (xhr.status == 200) {
+    if (!xhr.response) {
+      throw (
+        `Request for ${xhr.responseUrl} failed: Received HTTP ${xhr.status}, but xhr.response is `+
+        `${xhr.response}`
+      );
+    }
     placesToMap(xhr.response, PLACES);
     parsePlaces(PLACES, COUNTRY_CODES, REGION_CODES, TRANSLATIONS);
     if (typeof callback === 'function') {

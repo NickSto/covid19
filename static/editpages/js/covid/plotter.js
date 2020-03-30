@@ -88,7 +88,11 @@ function getPlacePlotData(place, data, options) {
     yVals = counts;
   }
   if (options.perCapita) {
-    yVals = divideByPop(yVals, data.places.get(place).population);
+    let population = data.places.get(place).population;
+    if (!population) {
+      throw `No population found for ${place}`;
+    }
+    yVals = divideByPop(yVals, population);
   }
   let displayName = data.places.get(place).displayName;
   return {name:displayName, x:dates, y:yVals}
@@ -146,9 +150,6 @@ function getCountDiffs(counts) {
 
 function divideByPop(rawCounts, population) {
   let newCounts = [];
-  if (!population) {
-    throw `No population found for ${country}/${region}.`;
-  }
   for (let count of rawCounts) {
     newCounts.push(count/population);
   }
