@@ -88,7 +88,7 @@ function getPlacePlotData(place, data, options) {
     yVals = counts;
   }
   if (options.perCapita) {
-    let population = data.places.get(place).population;
+    let population = Loader.PLACES.get(place).get('population');
     if (!population) {
       throw `No population found for ${place}`;
     }
