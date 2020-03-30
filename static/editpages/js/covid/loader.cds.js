@@ -4,6 +4,7 @@ import * as UI from './ui.js';
 import * as Utils from './utils.js';
 
 const DATA_URL = 'https://coronadatascraper.com/timeseries-byLocation.json';
+const DIVISION_KEYS = {country:'country', region:'state', county:'county', town:'city'};
 let COUNTRY_CODES = null;
 
 export function loadData(data, callback) {
@@ -48,10 +49,12 @@ function getPlaceKeys(rawPlaceData) {
     COUNTRY_CODES = Loader.PLACES.get([null,null,null,null]).get('codes');
   }
   let place = [];
+  let country = null;
   for (let division of Loader.DIVISIONS) {
+    let divisionKey = DIVISION_KEYS[division];
     let value = null;
-    if (rawPlaceData.hasOwnProperty(division)) {
-      let rawValue = rawPlaceData[division];
+    if (rawPlaceData.hasOwnProperty(divisionKey)) {
+      let rawValue = rawPlaceData[divisionKey];
       if (rawValue.toLowerCase() !== '(unassigned)') {
         value = rawValue.toLowerCase();
       }
@@ -59,9 +62,10 @@ function getPlaceKeys(rawPlaceData) {
         if (COUNTRY_CODES.has(rawValue)) {
           value = COUNTRY_CODES.get(rawValue);
         }
-      } else if (division === 'state') {
-        if (Utils.getRegionFromCode(rawValue)) {
-          value = Utils.getRegionFromCode(rawValue);
+        country = value;
+      } else if (division === 'region') {
+        if (Utils.getRegionFromCode(country, rawValue)) {
+          value = Utils.getRegionFromCode(country, rawValue);
         }
       }
     }
@@ -85,16 +89,18 @@ function storePlaceData(place, rawPlaceData) {
   }
   placeData.set(place, placeData);
   if (!placeData.has('displayName')) {
-    let displayName = getDisplayName(rawPlaceData, place);
+    let displayName = getDisplayName(place, rawPlaceData);
     placeData.set('displayName', displayName);
   }
 }
 
-function getDisplayName(placeData, place) {
+function getDisplayName(place, placeData) {
   let displayName = null;
-  for (let divisionName of place) {
-    if (divisionName !== null) {
-      displayName = divisionName;
+  for (let i = 0; i < place.length; i++) {
+    let placeKey = place[i];
+    if (placeKey !== null) {
+      let divisionKey = DIVISION_KEYS[Loader.DIVISIONS[i]];
+      displayName = placeData[divisionKey];
     }
   }
   return displayName;

@@ -6,7 +6,7 @@ import * as LoaderJHU from './loader.jhu.js';
 import * as LoaderCDS from './loader.cds.js';
 import * as LoaderNYT from './loader.nyt.js';
 
-export const DIVISIONS = ['country', 'state', 'county', 'city'];
+export const DIVISIONS = ['country', 'region', 'county', 'town'];
 export const PLACES = new Utils.MultiKeyMap();
 export const TRANSLATIONS = new Map();
 
