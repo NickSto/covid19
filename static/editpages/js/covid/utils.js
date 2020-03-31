@@ -13,15 +13,15 @@ export class MultiKeyMap {
      * So if the keys for this MultiKeyMap have three elements (say, [country, state, county]),
      * but you `.get([country,state])`, then what you'll receive is the Map for that state.
      * Its keys will be all the county names, so you can iterate over the keys hierarchically like:
-        for (let country of mkm.get([])) {
-          for (let state of mkm.get([country])) {
-            for (let county of mkm.get([country,state])) {
-              for (let value of mkm.get([country,state,county])) {
-                console.log(`${county}, ${state}, ${country} has ${value}`);
-              }
-            }
-          }
-        }
+     *  for (let country of mkm.get([])) {
+     *    for (let state of mkm.get([country])) {
+     *      for (let county of mkm.get([country,state])) {
+     *        for (let value of mkm.get([country,state,county])) {
+     *          console.log(`${county}, ${state}, ${country} has ${value}`);
+     *        }
+     *      }
+     *    }
+     *  }
      */
     let levelValue = this._data;
     for (let key of keys) {

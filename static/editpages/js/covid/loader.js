@@ -18,8 +18,18 @@ export function makeEmptyData() {
 }
 
 export function loadData(data, callback) {
+  // Load in order of least reliable data to most reliable.
   // TODO: Load in parallel, then merge results.
-  LoaderCDS.loadData(data, () => LoaderNYT.loadData(data, callback));
+  LoaderCDS.loadData(
+    data,
+    () => LoaderJHU.loadData(
+      data,
+      () => LoaderNYT.loadData(
+        data,
+        callback
+      )
+    )
+  );
 }
 
 export function initPlaces(event, callback) {

@@ -1,19 +1,20 @@
 
 import * as Loader from './loader.js';
+import * as Utils from './utils.js';
 import * as UI from './ui.js';
 
 const DATA_URL_BASE = (
-  'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/archived_data/'+
-  'archived_time_series/time_series_19-covid'
+  'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/'+
+  'csse_covid_19_time_series/time_series_covid19_'
 );
-const STAT_NAMES = {'cases':'Confirmed', 'deaths':'Deaths', 'recovered':'Recovered'};
+const DATA_URL_SUFFIX = '_global.csv';
+const STAT_NAMES = {'cases':'confirmed', 'deaths':'deaths', 'recovered':'recovered'};
 
 export function loadData(data, callback) {
   let loadStates = [];
-  for (let stat in STAT_NAMES) {
-    let statName = STAT_NAMES[stat];
+  for (let [stat, statName] of Object.entries(STAT_NAMES)) {
     Loader.makeRequest(
-      `${DATA_URL_BASE}-${statName}_archived_0325.csv`,
+      DATA_URL_BASE+statName+DATA_URL_SUFFIX,
       event => receiveData(event.target, data, stat, loadStates, callback)
     );
   }
@@ -22,10 +23,9 @@ export function loadData(data, callback) {
 function receiveData(xhr, data, stat, loadStates, callback) {
   console.log(`Received response from ${xhr.responseURL}`);
   if (xhr.status == 200) {
-    let rawTableData = Plotly.d3.csv.parseRows(xhr.responseText);
+    let rawTable = Plotly.d3.csv.parseRows(xhr.responseText);
     try {
-      let [tableData, dates] = parseTable(rawTableData);
-      addData(data, stat, tableData, dates);
+      parseTable(rawTable, data, stat);
       loadStates.push('loaded');
     } catch(error) {
       loadStates.push('failed');
@@ -46,26 +46,17 @@ function isDoneLoading(loadStates) {
   return loadStates.length === 3 && loadStates.every(s => s === 'loaded');
 }
 
-function parseTable(rawTable) {
-  let tableData = {'world':{}};
-  let dates;
+function parseTable(rawTable, data, stat) {
   let seenWholeCountries = new Set();
   let rowNum = 0;
   for (let row of rawTable) {
     rowNum++;
     if (rowNum === 1) {
-      // Store the dates given in the header.
-      if (
-        row[0].trim() === 'Province/State' &&
-        row[1].trim() === 'Country/Region' &&
-        row[2].trim() === 'Lat' &&
-        row[3].trim() === 'Long' &&
-        row[4].trim() === '1/22/20'
-      ) {
-        dates = row.slice(4).map(e => parseDate(e));
-      } else {
-        throw `Invalid raw data: Unexpected first line format: ${row.slice(0,7)}..`;
-      }
+      // Parse the dates from the header.
+      checkHeader(row);
+      let lastDateStr = row[row.length-1];
+      let lastDay = Utils.dateToDayNumber(parseDate(lastDateStr));
+      Utils.extendDatesArray(data.dates, lastDay);
     } else {
       // Parse a data row, store the counts.
       let rawRegion = parseAndLowerStr(row[0]);
@@ -78,39 +69,76 @@ function parseTable(rawTable) {
         country = rawCountry;
       }
       let region = parseRegion(rawRegion, country);
-      if (counts.length !== dates.length) {
-        throw `Invalid raw data: counts.length (${counts.length}) != dates.length (${dates.length}).`;
+      if (counts.length !== data.dates.length) {
+        throw (
+          `Invalid raw data: counts.length (${counts.length}) != dates.length `+
+          `(${data.dates.length}).`
+        );
       }
       // Sometimes they have duplicate entries for whole countries. Skip them.
-      if (region === '__all__') {
+      if (region === null) {
         if (seenWholeCountries.has(country)) {
           console.error(`Duplicate entry seen for ${country}`);
           continue;
         }
         seenWholeCountries.add(country);
       }
-      let countryCounts = getOrMakeCountryCounts(tableData, country);
-      if (countryCounts.hasOwnProperty(region)) {
-        // Are there already counts for this region?
-        if (region === '__all__') {
-          // If this is a country-wide row, there shouldn't already be a country-wide entry in the
-          // data. That'd mean that earlier we saw a row for a region in this country, and now
-          // we're seeing a country-wide row. That shouldn't occur.
-          throw `Saw a country-wide row for ${country}, but we already saw an entry it.`;
-        }
-        // If there are already counts for this region, add the new ones to them.
-        // This can happen for county-level data before they stopped including them on March 10.
-        for (let i = 0; i < counts.length; i++) {
-          countryCounts[region][i] += counts[i];
-        }
-      } else {
-        countryCounts[region] = counts;
+      // Store the counts.
+      let place = [country,region,null,null];
+      let placeCounts = data.counts.get(place);
+      if (! placeCounts) {
+        placeCounts = new Map();
+        data.counts.set(place, placeCounts);
       }
-      // Add to area totals: world and country.
-      addToTotals(tableData, country, counts);
+      placeCounts.set(stat, counts);
+      // If this is a specific region, add its counts to the country totals.
+      /*TODO: In case there's region entries and *also* a country-wide entry (who knows what they
+       *      might do), make the country-wide entry supersede the sums derived from the region
+       *      entries. This is technicallly already the case for countries like France and The
+       *      Netherlands, but only their overseas territories are listed as separate regions.
+       *      In these cases the numbers aren't significant.
+       */
+      if (region !== null) {
+        let countryPlace = [country,null,null,null]
+        let countryCounts = data.counts.get(countryPlace);
+        if (! countryCounts) {
+          countryCounts = new Map();
+          data.counts.set(countryPlace, countryCounts);
+        }
+        let statCounts = countryCounts.get(stat);
+        if (statCounts) {
+          for (let i = 0; i < counts.length; i++) {
+            statCounts[i] += counts[i];
+          }
+        } else {
+          countryCounts.set(stat, counts);
+        }
+      }
     }
   }
-  return [tableData, dates];
+}
+
+function checkHeader(header) {
+  if (
+    header[0].trim() !== 'Province/State' ||
+    header[1].trim() !== 'Country/Region' ||
+    header[2].trim() !== 'Lat' ||
+    header[3].trim() !== 'Long' ||
+    header[4].trim() !== '1/22/20'
+  ) {
+    throw `Invalid raw data: Unexpected first line format: ${header.slice(0,7)}..`;
+  }
+  let lastDay = null;
+  for (let dateStr of header.slice(4)) {
+    let date = parseDate(dateStr);
+    let day = Utils.dateToDayNumber(date);
+    if (lastDay !== null) {
+      if (day-lastDay !== 1) {
+        throw `Invalid raw data: Date ${dateStr} is ${day-lastDay} day(s) after previous date, not 1.`;
+      }
+    }
+    lastDay = day;
+  }
 }
 
 function parseDate(dateStr) {
@@ -135,7 +163,7 @@ function parseDate(dateStr) {
 
 function parseRegion(rawRegion, country) {
   if (rawRegion === null) {
-    return '__all__';
+    return rawRegion;
   }
   if (Loader.TRANSLATIONS.has(rawRegion)) {
     return Loader.TRANSLATIONS.get(rawRegion);
@@ -143,8 +171,9 @@ function parseRegion(rawRegion, country) {
   let fields = rawRegion.split(', ');
   if (fields.length === 2) {
     let code = fields[1].replace(/\./g,'').toUpperCase();
-    if (Loader.REGION_CODES.get(country).has(code)) {
-      return Loader.REGION_CODES.get(country).get(code);
+    let regionCodes = Loader.PLACES.get([country,null,null,null]).get('codes');
+    if (regionCodes.has(code)) {
+      return regionCodes.get(code);
     }
   }
   return rawRegion;
@@ -164,63 +193,5 @@ function strToInt(intStr) {
     return null;
   } else {
     return parseInt(intStr);
-  }
-}
-
-function getOrMakeCountryCounts(tableData, country) {
-  let countryCounts;
-  if (tableData.hasOwnProperty(country)) {
-    countryCounts = tableData[country];
-  } else {
-    countryCounts = {};
-    tableData[country] = countryCounts;
-  }
-  return countryCounts;
-}
-
-function addToTotals(tableData, country, counts) {
-  for (let area of [tableData['world'], tableData[country]]) {
-    if (area.hasOwnProperty('__all__')) {
-      let totals = area['__all__'];
-      if (counts.length !== totals.length) {
-        throw `Invalid raw data: Different count lengths (${counts.length} != ${totals.length}).`;
-      }
-      for (let i = 0; i < counts.length; i++) {
-        totals[i] += counts[i];
-      }
-    } else {
-      area['__all__'] = counts.slice();
-    }
-  }
-}
-
-function addData(data, stat, tableData, dates) {
-  if (data['dates'] === null) {
-    data['dates'] = dates;
-  } else {
-    compareDates(dates, data['dates']);
-  }
-  let counts = data['counts'];
-  for (let country in tableData) {
-    if (! counts.hasOwnProperty(country)) {
-      counts[country] = {};
-    }
-    for (let region in tableData[country]) {
-      if (! counts[country].hasOwnProperty(region)) {
-        counts[country][region] = {};
-      }
-      counts[country][region][stat] = tableData[country][region];
-    }
-  }
-}
-
-function compareDates(dates1, dates2) {
-  if (dates1.length !== dates2.length) {
-    throw `Number of dates does not agree between tables (${dates1.length} != ${dates2.length}`;
-  }
-  for (let i = 0; i < dates1.length; i++) {
-    if (dates1[i].getTime() !== dates2[i].getTime()) {
-      throw `Dates not the same in different tables (${dates1[i]} != ${dates2[i]}).`;
-    }
   }
 }
