@@ -97,6 +97,9 @@ function parsePlaces(places, translations) {
     let regionCodes = new Map();
     countryData.set('codes', regionCodes);
     for (let region of places.get([country]).keys()) {
+      if (region === null) {
+        continue;
+      }
       let regionData = places.get([country,region,null,null]);
       // Compile lookup table for postal codes.
       if (regionData.get('code')) {
