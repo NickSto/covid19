@@ -1,7 +1,7 @@
 
-import * as Loader from './loader.js';
-import * as Utils from './utils.js';
-import * as UI from './ui.js';
+import * as Loader from './loader.js?via=js';
+import * as Utils from './utils.js?via=js';
+import * as UI from './ui.js?via=js';
 
 const DATA_URL_BASE = (
   'https://raw.githubusercontent.com/CSSEGISandData/COVID-19/master/csse_covid_19_data/'+

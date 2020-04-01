@@ -1,7 +1,7 @@
 
-import * as Loader from './loader.js';
-import * as UI from './ui.js';
-import * as Utils from './utils.js';
+import * as Loader from './loader.js?via=js';
+import * as UI from './ui.js?via=js';
+import * as Utils from './utils.js?via=js';
 
 const DATA_URL = 'https://coronadatascraper.com/timeseries-byLocation.json';
 const DIVISION_KEYS = {country:'country', region:'state', county:'county', town:'city'};

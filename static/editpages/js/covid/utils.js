@@ -1,5 +1,5 @@
 
-import * as Loader from './loader.js';
+import * as Loader from './loader.js?via=js';
 
 const START_DATE = new Date(2020, 0, 22);
 

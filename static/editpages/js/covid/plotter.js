@@ -1,6 +1,6 @@
 
-import * as Loader from './loader.js';
-import * as UI from './ui.js';
+import * as Loader from './loader.js?via=js';
+import * as UI from './ui.js?via=js';
 
 const PLOT_LAYOUT = {
   margin: {t:0, b:0, l:0, r:0},

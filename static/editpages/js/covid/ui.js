@@ -1,6 +1,6 @@
 
-import * as Loader from './loader.js';
-import * as Plotter from './plotter.js';
+import * as Loader from './loader.js?via=js';
+import * as Plotter from './plotter.js?via=js';
 
 export function wireUI(data, defaultPlaces) {
   const addPlaceElem = document.getElementById('add-place');

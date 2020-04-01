@@ -1,6 +1,6 @@
 
-import * as Loader from './loader.js';
-import * as UI from './ui.js';
+import * as Loader from './loader.js?via=js';
+import * as UI from './ui.js?via=js';
 
 const DEFAULT_PLACES = [
   ['Italy','Lombardy',null,null],

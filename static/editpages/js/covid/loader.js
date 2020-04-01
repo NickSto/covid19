@@ -1,10 +1,10 @@
 
 //TODO: Switch to Corona Data Scraper: https://coronadatascraper.com/timeseries-byLocation.json
 
-import * as Utils from './utils.js';
-import * as LoaderJHU from './loader.jhu.js';
-import * as LoaderCDS from './loader.cds.js';
-import * as LoaderNYT from './loader.nyt.js';
+import * as Utils from './utils.js?via=js';
+import * as LoaderJHU from './loader.jhu.js?via=js';
+import * as LoaderCDS from './loader.cds.js?via=js';
+import * as LoaderNYT from './loader.nyt.js?via=js';
 const LOADERS = [LoaderCDS, LoaderJHU, LoaderNYT];
 
 export const DIVISIONS = ['country', 'region', 'county', 'town'];
