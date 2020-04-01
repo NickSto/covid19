@@ -3,10 +3,10 @@ import * as Loader from './loader.js';
 import * as UI from './ui.js';
 
 const DEFAULT_PLACES = [
-  ['US',null,null,null],
+  ['Italy','Lombardy',null,null],
   ['Italy',null,null,null],
   ['US','New York',null,null],
-  ['Italy','Lombardy',null,null]
+  ['US',null,null,null],
 ];
 
 function init() {
