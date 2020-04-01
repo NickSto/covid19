@@ -27,17 +27,18 @@ export function loadData(finalData, callback) {
   for (let loader of LOADERS) {
     let data = makeEmptyData();
     datas.push(data);
-    function loaderCallback() {
-      loadStates.push('loaded');
-      if (isDoneLoading(loadStates, LOADERS.length)) {
-        console.log(`Finished loading from ${LOADERS.length} sources. Merging..`);
-        mergeDatas(finalData, datas);
-        if (typeof callback === 'function') {
-          callback()
-        }
-      }
+    loader.loadData(data, () => mergeIfDone(finalData, datas, loadStates, callback));
+  }
+}
+
+function mergeIfDone(finalData, datas, loadStates, callback) {
+  loadStates.push('loaded');
+  if (isDoneLoading(loadStates, LOADERS.length)) {
+    console.log(`Finished loading from ${LOADERS.length} sources. Merging..`);
+    mergeDatas(finalData, datas);
+    if (typeof callback === 'function') {
+      callback()
     }
-    loader.loadData(data, loaderCallback);
   }
 }
 
