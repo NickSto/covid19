@@ -68,6 +68,9 @@ function getPlaceKeys(rawPlaceData) {
           value = Utils.getRegionFromCode(country, rawValue);
         }
       }
+      if (Loader.TRANSLATIONS.has(value)) {
+        value = Loader.TRANSLATIONS.get(value);
+      }
     }
     place.push(value);
   }

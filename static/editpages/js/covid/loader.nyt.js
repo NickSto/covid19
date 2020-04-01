@@ -47,6 +47,9 @@ function parseRawData(rawTable, data) {
       // Parse the columns.
       let date = Utils.parseDate(row[0]);
       let state = row[1].toLowerCase();
+      if (Loader.TRANSLATIONS.has(state)) {
+        state = Loader.TRANSLATIONS.get(state);
+      }
       // Collect the count values.
       let theseCounts = new Map();
       for (let [stat, column] of Object.entries(STATS)) {
