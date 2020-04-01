@@ -4,8 +4,8 @@ import * as UI from './ui.js';
 
 const DEFAULT_PLACES = [
   ['Italy','Lombardy',null,null],
-  ['Italy',null,null,null],
   ['US','New York',null,null],
+  ['Italy',null,null,null],
   ['US',null,null,null],
 ];
 
