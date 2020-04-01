@@ -80,13 +80,12 @@ function getEnteredPlaces() {
 }
 
 function parsePlace(placeStr, division, place) {
-  if (division === 'country' || division === 'state') {
+  if (division === 'country' || division === 'region') {
     if (Loader.TRANSLATIONS.has(placeStr)) {
-      console.log('here2');
       placeStr = Loader.TRANSLATIONS.get(placeStr);
     }
   }
-  if (division === 'state') {
+  if (division === 'region') {
     let country = place[0];
     let regionCodes = Loader.PLACES.get([country,null,null,null]).get('codes');
     let region = regionCodes.get(placeStr.toUpperCase());
