@@ -2,7 +2,12 @@
 import * as Loader from './loader.js';
 import * as UI from './ui.js';
 
-const DEFAULT_PLACES = [['US',null,null,null]];
+const DEFAULT_PLACES = [
+  ['US',null,null,null],
+  ['Italy',null,null,null],
+  ['US','New York',null,null],
+  ['Italy','Lombardy',null,null]
+];
 
 function init() {
   const linkElem = document.getElementById('json-link');
