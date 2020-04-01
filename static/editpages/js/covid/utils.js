@@ -55,6 +55,17 @@ export class MultiKeyMap {
       return true;
     }
   }
+  update(newData, keys=[]) {
+    let value = newData.get(keys);
+    if (value instanceof Map) {
+      let map = value;
+      for (let key of map.keys()) {
+        this.update(newData, [...keys, key]);
+      }
+    } else {
+      this.set(keys, value);
+    }
+  }
 }
 
 const REGION_CODES_CACHE = new Map();

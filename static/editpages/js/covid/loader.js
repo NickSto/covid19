@@ -5,6 +5,7 @@ import * as Utils from './utils.js';
 import * as LoaderJHU from './loader.jhu.js';
 import * as LoaderCDS from './loader.cds.js';
 import * as LoaderNYT from './loader.nyt.js';
+const LOADERS = [LoaderCDS, LoaderJHU, LoaderNYT];
 
 export const DIVISIONS = ['country', 'region', 'county', 'town'];
 export const PLACES = new Utils.MultiKeyMap();
@@ -17,19 +18,52 @@ export function makeEmptyData() {
   }
 }
 
-export function loadData(data, callback) {
-  // Load in order of least reliable data to most reliable.
-  // TODO: Load in parallel, then merge results.
-  LoaderCDS.loadData(
-    data,
-    () => LoaderJHU.loadData(
-      data,
-      () => LoaderNYT.loadData(
-        data,
-        callback
-      )
-    )
-  );
+export function loadData(finalData, callback) {
+  // Load in parallel, then merge results.
+  // Merge in order of least reliable data to most reliable, since every later one overrides any
+  // previous entries.
+  let loadStates = [];
+  let datas = [];
+  for (let loader of LOADERS) {
+    let data = makeEmptyData();
+    datas.push(data);
+    function loaderCallback() {
+      loadStates.push('loaded');
+      if (isDoneLoading(loadStates, LOADERS.length)) {
+        console.log(`Finished loading from ${LOADERS.length} sources. Merging..`);
+        mergeDatas(finalData, datas);
+        if (typeof callback === 'function') {
+          callback()
+        }
+      }
+    }
+    loader.loadData(data, loaderCallback);
+  }
+}
+
+function isDoneLoading(loadStates, doneLength) {
+  return loadStates.length === doneLength && loadStates.every(s => s === 'loaded');
+}
+
+function mergeDatas(finalData, datas) {
+  for (let data of datas) {
+    if (finalData.dates.length === 0) {
+      finalData.dates = data.dates;
+    } else {
+      compareDates(finalData.dates, data.dates);
+      let latestDay = Utils.dateToDayNumber(data.dates[data.dates.length-1]);
+      Utils.extendDatesArray(finalData.dates, latestDay);
+    }
+    finalData.counts.update(data.counts);
+  }
+}
+
+function compareDates(dates1, dates2) {
+  for (let i = 0; i < dates1.length && i < dates2.length; i++) {
+    if (dates1[i].getTime() !== dates2[i].getTime()) {
+      throw `Dates not the same in different sources (${dates1[i]} != ${dates2[i]}).`;
+    }
+  }
 }
 
 export function initPlaces(event, callback) {
