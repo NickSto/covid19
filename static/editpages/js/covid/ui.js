@@ -68,35 +68,81 @@ function getEnteredPlaces() {
   const placeContainerElems = document.getElementsByClassName('place-container');
   for (let placeContainerElem of placeContainerElems) {
     let place = [];
+    let placeInputElem;
     for (let division of Loader.DIVISIONS) {
-      const placeInputElem = placeContainerElem.querySelector(`.${division}-input`);
+      placeInputElem = placeContainerElem.querySelector(`.${division}-input`);
       let placeStr = placeInputElem.value.trim().toLowerCase();
-      let placeKey = parsePlace(placeStr, division, place);
-      place.push(placeKey);
+      try {
+        let placeKey = parsePlace(placeStr, division, place);
+        place.push(placeKey);
+      } catch (error) {
+        console.error(error);
+        setPlaceAlert(placeInputElem, false);
+      }
     }
-    places.push(place);
+    if (place.length === Loader.DIVISIONS.length && !place.every(p => p === null)) {
+      setPlaceAlert(placeInputElem, true);
+      places.push(place);
+    }
   }
   return places;
 }
 
 function parsePlace(placeStr, division, place) {
-  if (division === 'country' || division === 'region') {
-    if (Loader.TRANSLATIONS.has(placeStr)) {
-      placeStr = Loader.TRANSLATIONS.get(placeStr);
+  let placeKey;
+  if (placeStr === '') {
+    placeKey = null;
+  } else {
+    placeKey = placeStr;
+  }
+  // Run country/region names through translator.
+  if (division === Loader.DIVISIONS[0] || division === Loader.DIVISIONS[1]) {
+    if (Loader.TRANSLATIONS.has(placeKey)) {
+      placeKey = Loader.TRANSLATIONS.get(placeKey);
     }
   }
-  if (division === 'region') {
+  // Look up region code and check if valid region.
+  if (division === Loader.DIVISIONS[1] && place.length >= 1) {
     let country = place[0];
     let regionCodes = Loader.PLACES.get([country,null,null,null]).get('codes');
     let region = regionCodes.get(placeStr.toUpperCase());
     if (region) {
-      return region;
+      placeKey = region;
     }
   }
-  if (placeStr === '') {
+  // Try to look up the key to see if it's valid.
+  let testPlace = [...place, placeKey];
+  while (testPlace.length < Loader.DIVISIONS.length) {
+    testPlace.push(null);
+  }
+  if (testPlace.every(p => p === null)) {
     return null;
+  }
+  let valid = false;
+  if (Loader.PLACES.get(testPlace)) {
+    valid = true;
   } else {
-    return placeStr;
+    // If it's a county or town, try adding ' county' or ' city' to the name.
+    let newPlaceKey = placeKey;
+    if (division === Loader.DIVISIONS[2]) {
+      newPlaceKey += ' county';
+    } else if (division === Loader.DIVISIONS[3]) {
+      newPlaceKey += ' city';
+    }
+    if (newPlaceKey !== placeKey) {
+      let divisionI = Loader.DIVISIONS.indexOf(division);
+      testPlace[divisionI] = newPlaceKey;
+      if (Loader.PLACES.get(testPlace)) {
+        console.log(`Found place by appending "county"/"city".`);
+        valid = true;
+        placeKey = newPlaceKey;
+      }
+    }
+  }
+  if (valid) {
+    return placeKey;
+  } else {
+    throw `${division} "${placeStr}" not found.`;
   }
 }
 
