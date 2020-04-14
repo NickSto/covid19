@@ -8,7 +8,9 @@ import * as LoaderNYT from './loader.nyt.js?via=js';
 const LOADERS = [LoaderCDS, LoaderJHU, LoaderNYT];
 
 export const DIVISIONS = ['country', 'region', 'county', 'town'];
+export const DIVISION_ALIASES = {country:'country', region:'state', county:'county', town:'city'};
 export const PLACES = new Utils.MultiKeyMap();
+export const INDEX = new Map();
 export const TRANSLATIONS = new Map();
 
 export function makeEmptyData() {
@@ -34,8 +36,12 @@ export function loadData(finalData, callback) {
 function mergeIfDone(finalData, datas, loadStates, callback) {
   loadStates.push('loaded');
   if (isDoneLoading(loadStates, LOADERS.length)) {
-    console.log(`Finished loading from ${LOADERS.length} sources. Merging..`);
     mergeDatas(finalData, datas);
+    indexPlaces(PLACES, INDEX);
+    console.log(
+      `Finished loading from ${LOADERS.length} sources. Got data on `+
+      `${finalData.counts.keys().length} places.`
+    );
     if (typeof callback === 'function') {
       callback()
     }
@@ -65,6 +71,46 @@ function compareDates(dates1, dates2) {
       throw `Dates not the same in different sources (${dates1[i]} != ${dates2[i]}).`;
     }
   }
+}
+
+function indexPlaces(places, index) {
+  for (let place of places.keys()) {
+    let [name, division] = getMostSpecificKey(place);
+    let divisionAlias = DIVISION_ALIASES[division];
+    // Store place by its primary key: the lowercase version of the name of its most specific division.
+    // But if there's already something stored by that key, and it's a more specific division, let
+    // that stay.
+    if (!hasMoreSpecificValue(index, name, division)) {
+      index.set(name, place);
+    }
+    // Also use keys where you append the division explicitly, like 'New York (state)'.
+    index.set(`${name} (${division})`, place);
+    if (division !== divisionAlias) {
+      index.set(`${name} (${divisionAlias})`, place);
+    }
+  }
+}
+
+function getMostSpecificKey(place) {
+  for (let i = place.length-1; i >= 0; i--) {
+    if (place[i] !== null) {
+      return [place[i], DIVISIONS[i]];
+    }
+  }
+  return [null, null];
+}
+
+function hasMoreSpecificValue(index, name, division) {
+  if (index.has(name)) {
+    let existingPlace = index.get(name);
+    let [existingName, existingDivision] = getMostSpecificKey(existingPlace);
+    let divisionI = DIVISIONS.indexOf(division);
+    let existingI = DIVISIONS.indexOf(existingDivision);
+    if (existingI > divisionI) {
+      return true;
+    }
+  }
+  return false;
 }
 
 export function initPlaces(event, callback) {
@@ -129,7 +175,7 @@ function placesToMKM(placesObj, placesMKM) {
 function parsePlaces(places, translations) {
   let worldData = places.get([null,null,null,null]);
   let countryCodes = new Map();
-  for (let country of places.get([]).keys()) {
+  for (let country of places.keys([], 'single')) {
     let countryData = places.get([country,null,null,null]);
     // Compile lookup table for ISO-3166 codes.
     if (countryData.get('iso3166')) {
@@ -141,7 +187,7 @@ function parsePlaces(places, translations) {
     }
     let regionCodes = new Map();
     countryData.set('codes', regionCodes);
-    for (let region of places.get([country]).keys()) {
+    for (let region of places.keys([country], 'single')) {
       if (region === null) {
         continue;
       }

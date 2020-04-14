@@ -11,12 +11,7 @@
   margin-bottom: 3px;
 }
 
-.place-input-labels {
-  margin-left: 45px;
-  font-weight: bold;
-}
-
-.place-input, .place-input-label {
+.place-input {
   display: inline-block;
   width: 150px;
 }

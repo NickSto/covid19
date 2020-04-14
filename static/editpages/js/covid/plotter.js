@@ -73,7 +73,7 @@ function getPlacePlotData(place, data, options) {
   let dates = data.dates;
   let placeCounts = data.counts.get(place);
   if (! placeCounts) {
-    throw `Place ${place} not found.`;
+    throw `Place ${JSON.stringify(place)} not found.`;
   }
   let counts = getPlaceCounts(data.counts.get(place), options.dataType);
   [dates, counts] = rmNulls(dates, counts);
@@ -90,7 +90,7 @@ function getPlacePlotData(place, data, options) {
   if (options.perCapita) {
     let population = Loader.PLACES.get(place).get('population');
     if (!population) {
-      throw `No population found for ${place}`;
+      throw `No population found for ${JSON.stringify(place)}`;
     }
     yVals = divideByPop(yVals, population);
   }

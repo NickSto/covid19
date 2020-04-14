@@ -20,7 +20,7 @@ export function plotEnteredPlaces(data) {
   Plotter.plotPlaces(data, places);
 }
 
-function addPlaceInput(event, place=null) {
+function addPlaceInput(event, placeStr='') {
   if (typeof event !== 'undefined' && event) {
     event.preventDefault();
   }
@@ -33,17 +33,12 @@ function addPlaceInput(event, place=null) {
   placeDeleteElem.title = 'delete';
   placeDeleteElem.addEventListener('click', deletePlaceInput);
   placeContainerElem.appendChild(placeDeleteElem);
-  for (let i = 0; i < Loader.DIVISIONS.length; i++) {
-    let division = Loader.DIVISIONS[i];
-    let placeInputElem = document.createElement('input');
-    placeInputElem.classList.add('place-input',`${division}-input`);
-    placeInputElem.type = 'text';
-    // placeInputElem.placeholder = 'Italy, New York, etc.';
-    if (place) {
-      placeInputElem.value = place[i];
-    }
-    placeContainerElem.appendChild(placeInputElem);
-  }
+  let placeInputElem = document.createElement('input');
+  placeInputElem.classList.add('place-input');
+  placeInputElem.type = 'text';
+  placeInputElem.placeholder = 'Italy, New York, etc.';
+  placeInputElem.value = placeStr;
+  placeContainerElem.appendChild(placeInputElem);
   let placeAlertElem = document.createElement('span');
   placeAlertElem.classList.add('place-alert', 'error', 'hidden');
   placeAlertElem.textContent = "Did not recognize this place. Try checking the spelling.";
@@ -67,83 +62,26 @@ function getEnteredPlaces() {
   let places = [];
   const placeContainerElems = document.getElementsByClassName('place-container');
   for (let placeContainerElem of placeContainerElems) {
-    let place = [];
-    let placeInputElem;
-    for (let division of Loader.DIVISIONS) {
-      placeInputElem = placeContainerElem.querySelector(`.${division}-input`);
-      let placeStr = placeInputElem.value.trim().toLowerCase();
-      try {
-        let placeKey = parsePlace(placeStr, division, place);
-        place.push(placeKey);
-      } catch (error) {
-        console.error(error);
-        setPlaceAlert(placeInputElem, false);
-      }
-    }
-    if (place.length === Loader.DIVISIONS.length && !place.every(p => p === null)) {
-      setPlaceAlert(placeInputElem, true);
+    let placeInputElem = placeContainerElem.querySelector('.place-input');
+    let rawPlaceStr = placeInputElem.value
+    let place = parsePlace(rawPlaceStr);
+    if (place) {
       places.push(place);
+      setPlaceAlert(placeInputElem, true);
+    } else {
+      console.error(`Place "${rawPlaceStr}" not found.`);
+      setPlaceAlert(placeInputElem, false);
     }
   }
   return places;
 }
 
-function parsePlace(placeStr, division, place) {
-  let placeKey;
-  if (placeStr === '') {
-    placeKey = null;
-  } else {
-    placeKey = placeStr;
+function parsePlace(rawPlaceStr) {
+  let placeStr = rawPlaceStr.trim().toLowerCase();
+  if (Loader.TRANSLATIONS.has(placeStr)) {
+    placeStr = Loader.TRANSLATIONS.get(placeStr);
   }
-  // Run country/region names through translator.
-  if (division === Loader.DIVISIONS[0] || division === Loader.DIVISIONS[1]) {
-    if (Loader.TRANSLATIONS.has(placeKey)) {
-      placeKey = Loader.TRANSLATIONS.get(placeKey);
-    }
-  }
-  // Look up region code and check if valid region.
-  if (division === Loader.DIVISIONS[1] && place.length >= 1) {
-    let country = place[0];
-    let regionCodes = Loader.PLACES.get([country,null,null,null]).get('codes');
-    let region = regionCodes.get(placeStr.toUpperCase());
-    if (region) {
-      placeKey = region;
-    }
-  }
-  // Try to look up the key to see if it's valid.
-  let testPlace = [...place, placeKey];
-  while (testPlace.length < Loader.DIVISIONS.length) {
-    testPlace.push(null);
-  }
-  if (testPlace.every(p => p === null)) {
-    return null;
-  }
-  let valid = false;
-  if (Loader.PLACES.get(testPlace)) {
-    valid = true;
-  } else {
-    // If it's a county or town, try adding ' county' or ' city' to the name.
-    let newPlaceKey = placeKey;
-    if (division === Loader.DIVISIONS[2]) {
-      newPlaceKey += ' county';
-    } else if (division === Loader.DIVISIONS[3]) {
-      newPlaceKey += ' city';
-    }
-    if (newPlaceKey !== placeKey) {
-      let divisionI = Loader.DIVISIONS.indexOf(division);
-      testPlace[divisionI] = newPlaceKey;
-      if (Loader.PLACES.get(testPlace)) {
-        console.log(`Found place by appending "county"/"city".`);
-        valid = true;
-        placeKey = newPlaceKey;
-      }
-    }
-  }
-  if (valid) {
-    return placeKey;
-  } else {
-    throw `${division} "${placeStr}" not found.`;
-  }
+  return Loader.INDEX.get(placeStr);
 }
 
 function setPlaceAlert(placeInputElem, valid) {
