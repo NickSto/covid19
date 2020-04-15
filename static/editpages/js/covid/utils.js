@@ -41,6 +41,7 @@ export class MultiKeyMap {
     }
   }
   keys(prefix=[], type='full') {
+    //TODO: Convert to generator.
     let levelMap = this.get(prefix, 'map');
     if (levelMap === undefined) {
       return [];
@@ -49,6 +50,16 @@ export class MultiKeyMap {
       return getMkmKeys(levelMap, prefix);
     } else if (type === 'single') {
       return Array.from(levelMap.keys());
+    }
+  }
+  *entries() {
+    for (let keys of this.keys()) {
+      yield [keys, this.get(keys)];
+    }
+  }
+  *values() {
+    for (let keys of this.keys()) {
+      yield this.get(keys);
     }
   }
   update(newData) {

@@ -172,10 +172,12 @@ function getAndProcessPlaceInput(placeContainerElem, placeInputElem) {
 
 function parsePlace(rawPlaceStr) {
   let placeStr = rawPlaceStr.toLowerCase();
-  if (Loader.TRANSLATIONS.has(placeStr)) {
-    placeStr = Loader.TRANSLATIONS.get(placeStr);
+  let place = Loader.INDEX.get(placeStr);
+  if (! place) {
+    // Is it an (all caps) region code?
+    place = Loader.INDEX.get(rawPlaceStr);
   }
-  return Loader.INDEX.get(placeStr);
+  return place;
 }
 
 function rmPlaceAlert(placeContainerElem) {

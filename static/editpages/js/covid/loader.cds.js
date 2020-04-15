@@ -82,6 +82,10 @@ function storePlaceData(place, rawPlaceData) {
   if (!placeData) {
     placeData = new Map();
     Loader.PLACES.set(place, placeData);
+    let [key, division] = Loader.getMostSpecificKey(place);
+    for (let [key, defaultFxn] of Loader.PLACE_KEYS.get(division).entries()) {
+      placeData.set(key, defaultFxn());
+    }
   }
   if (!placeData.has('population')) {
     let population = rawPlaceData.population;

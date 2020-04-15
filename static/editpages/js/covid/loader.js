@@ -12,6 +12,19 @@ export const DIVISION_ALIASES = {country:'country', region:'state', county:'coun
 export const PLACES = new Utils.MultiKeyMap();
 export const INDEX = new Map();
 export const TRANSLATIONS = new Map();
+// Make reference for the keys for Maps at each division in PLACES.
+function arr() {return [];}
+function nul() {return null;}
+const COUNTRY_KEYS = objToMap({population:nul, displayName:nul, aliases:arr, codes:arr, iso3166:nul});
+const REGION_KEYS  = objToMap({population:nul, displayName:nul, aliases:arr, code:nul});
+const DEFAULT_KEYS = objToMap({population:nul, displayName:nul});
+export const PLACE_KEYS = new Map([
+  [null, COUNTRY_KEYS],
+  ['country', COUNTRY_KEYS],
+  ['region', REGION_KEYS],
+  ['county', DEFAULT_KEYS],
+  ['town', DEFAULT_KEYS],
+]);
 
 export function makeEmptyData() {
   return {
@@ -74,13 +87,13 @@ function compareDates(dates1, dates2) {
 }
 
 function indexPlaces(places, index) {
-  for (let place of places.keys()) {
+  for (let [place, placeData] of places.entries()) {
     let [name, division] = getMostSpecificKey(place);
     let divisionAlias = DIVISION_ALIASES[division];
-    // Store place by its primary key: the lowercase version of the name of its most specific division.
-    // But if there's already something stored by that key, and it's a more specific division, let
-    // that stay.
-    if (!hasMoreSpecificValue(index, name, division)) {
+    // Store place by its primary key: the lowercase version of the name of its most specific
+    // division. But if there's already something stored by that key, and it's a more specific
+    // division, let that stay.
+    if (! hasMoreSpecificValue(index, name, division)) {
       index.set(name, place);
     }
     // Also use keys where you append the division explicitly, like 'New York (state)'.
@@ -88,10 +101,22 @@ function indexPlaces(places, index) {
     if (division !== divisionAlias) {
       index.set(`${name} (${divisionAlias})`, place);
     }
+    // And index by region codes as well.
+    let code = placeData.get('code');
+    if (code) {
+      index.set(code, place);
+    }
+    // And index by aliases.
+    let aliases = placeData.get('aliases') || [];
+    for (let alias of aliases) {
+      if (! hasMoreSpecificValue(index, alias, division)) {
+        index.set(alias, place);
+      }
+    }
   }
 }
 
-function getMostSpecificKey(place) {
+export function getMostSpecificKey(place) {
   for (let i = place.length-1; i >= 0; i--) {
     if (place[i] !== null) {
       return [place[i], DIVISIONS[i]];
@@ -148,7 +173,7 @@ function placesToMKM(placesObj, placesMKM) {
     // Some keys are optional, to keep the JSON human-readable.
     // But make them all mandatory in the data structure.
     for (let [key, value] of [['iso3166',null],['aliases',[]]]) {
-      if (!countryMap.has(key)) {
+      if (! countryMap.has(key)) {
         countryMap.set(key,value);
       }
     }
@@ -245,4 +270,50 @@ function objToMap(obj, map=null) {
     map.set(key, value);
   }
   return map;
+}
+
+// This validates and describes what the PLACES data structure is supposed to look like.
+export function validatePlaces(places) {
+  for (let [place, placeData] of places.entries()) {
+    if (! (place instanceof Array)) {
+      throw `Place ${JSON.stringify(place)} is a ${place.constructor.name}, not an array.`;
+    }
+    if (! (placeData instanceof Map)) {
+      throw (
+        `Data ${JSON.stringify(placeData)} for place ${JSON.stringify(place)} is a `+
+        `${placeData.constructor.name}, not a Map.`
+      );
+    }
+    let [key, division] = getMostSpecificKey(place);
+    let validKeys = PLACE_KEYS.get(division);
+    let observedKeys = new Set();
+    for (let key of placeData.keys()) {
+      if (typeof key !== 'string') {
+        throw (
+          `Data key ${JSON.stringify(key)} for place ${JSON.stringify(place)} is a `+
+          `${typeof key}, not a string.`
+        );
+      }
+      if (! validKeys.has(key)) {
+        let value = placeData.get(key);
+        throw (
+          `Data key "${key}" for ${division} ${JSON.stringify(place)} is `+
+          `not a recognized valid key (maps to value ${JSON.stringify(value)}).`
+        );
+      }
+      observedKeys.add(key);
+    }
+    if (observedKeys.size < validKeys.size) {
+      let missing = [];
+      for (let key of validKeys.keys()) {
+        if (! observedKeys.has(key)) {
+          missing.push(key);
+        }
+      }
+      let keysList = missing.map(JSON.stringify).join(', ')
+      throw `Required keys ${keysList} missing from place ${JSON.stringify(place)}.`;
+    } else if (observedKeys.size > validKeys.size) {
+      throw `Too many keys for place ${JSON.stringify(place)}, but somehow didn't catch it.`;
+    }
+  }
 }
