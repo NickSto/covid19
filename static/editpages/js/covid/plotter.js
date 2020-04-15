@@ -6,6 +6,8 @@ const PLOT_LAYOUT = {
   margin: {t:0, b:0, l:0, r:0},
   yaxis: {automargin: true},
   xaxis: {automargin: true},
+  showlegend: true,
+  legend: {x: 0.05, y: 1}
 };
 
 export function plotPlaces(data, placeSpecs) {
