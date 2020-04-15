@@ -90,7 +90,6 @@ function storePlaceData(place, rawPlaceData) {
     }
     placeData.set('population', population);
   }
-  placeData.set(place, placeData);
   if (!placeData.has('displayName')) {
     let displayName = getDisplayName(place, rawPlaceData);
     placeData.set('displayName', displayName);
