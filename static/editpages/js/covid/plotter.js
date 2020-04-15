@@ -69,21 +69,11 @@ function getPlotDescription(options) {
 }
 
 function getPlacePlotData(placeSpec, data, options) {
-  let {include:place, exclude:excludedPlace} = placeSpec;
+  let {include:place, excludes:excludedPlaces} = placeSpec;
   // Get the raw confirmed cases counts.
   let dates = data.dates;
-  let placeData = data.counts.get(place);
-  if (! placeData) {
-    throw `Place ${JSON.stringify(place)} not found.`;
-  }
-  let excludedData = null;
-  if (excludedPlace) {
-    excludedData = data.counts.get(excludedPlace);
-    if (! excludedData) {
-      throw `Excluded place ${JSON.stringify(excludedPlace)} not found.`;
-    }
-  }
-  let counts = getPlaceCounts(placeData, excludedData, options.dataType);
+  let [placeData, excludedDatas] = getPlacesData(data, place, excludedPlaces);
+  let counts = getPlaceCounts(placeData, excludedDatas, options.dataType);
   [dates, counts] = rmNulls(dates, counts);
   // Apply the requested transformations.
   let yVals = null;
@@ -96,35 +86,68 @@ function getPlacePlotData(placeSpec, data, options) {
     yVals = counts;
   }
   if (options.perCapita) {
-    let population = getPopulation(place, excludedPlace);
+    let population = getPopulation(place, excludedPlaces);
     yVals = divideByPop(yVals, population);
   }
   let displayName = Loader.PLACES.get(place).get('displayName');
-  if (excludedPlace) {
+  for (let excludedPlace of excludedPlaces) {
     displayName += ' - ' + Loader.PLACES.get(excludedPlace).get('displayName');
   }
   return {name:displayName, x:dates, y:yVals}
 }
 
-function getPlaceCounts(allPlaceCounts, allExcludedCounts, dataType) {
+function getPlacesData(data, includedPlace, excludedPlaces) {
+  let placeData = data.counts.get(includedPlace);
+  if (! placeData) {
+    throw `Place ${JSON.stringify(includedPlace)} not found.`;
+  }
+  let excludedDatas = [];
+  for (let excludedPlace of excludedPlaces) {
+    let excludedData = data.counts.get(excludedPlace);
+    if (! excludedData) {
+      throw `Excluded place ${JSON.stringify(excludedPlace)} not found.`;
+    }
+    excludedDatas.push(excludedData);
+  }
+  return [placeData, excludedDatas];
+}
+
+function getPlaceCounts(allPlaceCounts, allExcludedsCounts, dataType) {
   if (dataType === 'mortality') {
     let cases = allPlaceCounts.get('cases');
     let deaths = allPlaceCounts.get('deaths');
-    if (allExcludedCounts) {
-      let exCases = allExcludedCounts.get('cases');
-      let exDeaths = allExcludedCounts.get('deaths');
+    if (allExcludedsCounts.length > 0) {
+      let exCases = addSeries(allExcludedsCounts.map(c => c.get('cases')));
+      let exDeaths = addSeries(allExcludedsCounts.map(c => c.get('deaths')));
       cases = subtractSeries(cases, exCases);
       deaths = subtractSeries(deaths, exDeaths);
     }
     return countsToMortality(cases, deaths);
   } else {
     let counts = allPlaceCounts.get(dataType);
-    if (allExcludedCounts) {
-      let excludedCounts = allExcludedCounts.get(dataType);
+    if (allExcludedsCounts.length > 0) {
+      let excludedCounts = addSeries(allExcludedsCounts.map(c => c.get(dataType)));
       counts = subtractSeries(counts, excludedCounts);
     }
     return counts;
   }
+}
+
+function addSeries(serieses) {
+  let totals = [];
+  for (let series of serieses) {
+    for (let i = 0; i < totals.length || i < series.length; i++) {
+      if (i >= series.length) {
+        break;
+      }
+      if (i < totals.length) {
+        totals[i] += series[i];
+      } else {
+        totals.push(series[i]);
+      }
+    }
+  }
+  return totals;
 }
 
 function subtractSeries(leftSeries, rightSeries) {
@@ -181,19 +204,20 @@ function getCountDiffs(counts) {
   return diffs;
 }
 
-function getPopulation(place, excludedPlace) {
+function getPopulation(place, excludedPlaces) {
   let population = Loader.PLACES.get(place).get('population');
   if (! population) {
     throw `No population found for place ${JSON.stringify(place)}`;
   }
-  if (excludedPlace) {
+  let excludedPop = 0;
+  for (let excludedPlace of excludedPlaces) {
     let excludedPop = Loader.PLACES.get(excludedPlace).get('population');
     if (! excludedPop) {
       throw `No population found for excluded place ${JSON.stringify(excludedPlace)}`;
     }
-    population -= excludedPop;
+    excludedPop += excludedPop;
   }
-  return population;
+  return population - excludedPop;
 }
 
 function divideByPop(rawCounts, population) {

@@ -16,7 +16,7 @@
   font-weight: bold;
 }
 
-#exclude-label {
+#exclude-label, #excludes-label {
   margin-left: 23px;
 }
 

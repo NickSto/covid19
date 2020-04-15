@@ -55,14 +55,11 @@ function deletePlaceInput(event) {
   if (typeof event !== 'undefined') {
     event.preventDefault();
   }
-  const placeDeleteElem = event.target;
-  if (
-      placeDeleteElem.tagName !== 'BUTTON' ||
-      ! placeDeleteElem.classList.contains('place-delete')
-  ) {
-    throw `deletePlaceInput() called on wrong element (a ${placeDeleteElem.tagName})`;
+  const deleteElem = event.target;
+  if (deleteElem.tagName !== 'BUTTON' || ! deleteElem.classList.contains('place-delete')) {
+    throw `deletePlaceInput() called on wrong element (a ${deleteElem.tagName})`;
   }
-  const placeContainerElem = placeDeleteElem.parentElement;
+  const placeContainerElem = deleteElem.parentElement;
   if (! placeContainerElem.classList.contains('place-container')) {
     throw (
       'Expected place-container element not found (instead got an element with classes "'+
@@ -70,35 +67,52 @@ function deletePlaceInput(event) {
     );
   }
   placeContainerElem.remove();
-  const placeExcludeElems = document.getElementsByClassName('place-exclude');
-  if (placeExcludeElems.length === 0) {
-    const excludeLabelElem = document.getElementById('exclude-label');
-    excludeLabelElem.classList.add('hidden');
-  }
+  setExcludeLabels();
 }
 
 function addExceptInput(event) {
   if (typeof event !== 'undefined') {
     event.preventDefault();
   }
-  const placeExceptElem = event.target;
-  if (
-      placeExceptElem.tagName !== 'BUTTON' ||
-      ! placeExceptElem.classList.contains('place-except')
-  ) {
-    throw `addExceptInput() called on wrong element (a ${placeExceptElem.tagName})`;
+  const exceptElem = event.target;
+  if (exceptElem.tagName !== 'BUTTON' || ! exceptElem.classList.contains('place-except')) {
+    throw `addExceptInput() called on wrong element (a ${exceptElem.tagName})`;
   }
-  // Is there already an except input here?
-  if (placeExceptElem.parentElement.querySelector('.place-exclude')) {
-    return;
+  const excludeElem = document.createElement('input');
+  excludeElem.classList.add('place-input', 'place-exclude');
+  excludeElem.type = 'text';
+  excludeElem.placeholder = 'Italy, New York, etc.';
+  const excludeElems = exceptElem.parentElement.querySelectorAll('.place-exclude');
+  if (excludeElems.length >= 1) {
+    excludeElem.classList.add('place-excludes');
   }
-  const placeExcludeElem = document.createElement('input');
-  placeExcludeElem.classList.add('place-input', 'place-exclude');
-  placeExcludeElem.type = 'text';
-  placeExcludeElem.placeholder = 'Italy, New York, etc.';
-  placeExceptElem.insertAdjacentElement('afterend', placeExcludeElem);
+  exceptElem.insertAdjacentElement('afterend', excludeElem);
+  const exceptElem2 = document.createElement('button');
+  exceptElem2.classList.add('place-except','btn','btn-sm','btn-default');
+  exceptElem2.textContent = '-';
+  exceptElem2.title = 'except';
+  exceptElem2.addEventListener('click', addExceptInput);
+  excludeElem.insertAdjacentElement('afterend', exceptElem2);
+  setExcludeLabels();
+}
+
+function setExcludeLabels() {
   const excludeLabelElem = document.getElementById('exclude-label');
-  excludeLabelElem.classList.remove('hidden');
+  const excludesLabelElem = document.getElementById('excludes-label');
+  const excludeElems = document.getElementsByClassName('place-exclude');
+  const excludeExtraElems = document.getElementsByClassName('place-excludes');
+  if (excludeElems.length === 0 && excludeExtraElems.length === 0) {
+    excludeLabelElem.classList.add('hidden');
+    excludesLabelElem.classList.add('hidden');
+  } else if (excludeElems.length >= 1 && excludeExtraElems.length === 0) {
+    excludeLabelElem.classList.remove('hidden');
+    excludesLabelElem.classList.add('hidden');
+  } else if (excludeElems.length >= 1 && excludeExtraElems.length >= 1) {
+    excludeLabelElem.classList.add('hidden');
+    excludesLabelElem.classList.remove('hidden');
+  } else {
+    throw `Invalid combination of .place-exclude and .place-excludes elements.`;
+  }
 }
 
 function getEnteredPlaces() {
@@ -108,8 +122,8 @@ function getEnteredPlaces() {
     let placeSpec;
     try {
       placeSpec = {
-        include: getAndProcessPlaceInput(placeContainerElem, '.place-include'),
-        exclude: getAndProcessPlaceInput(placeContainerElem, '.place-exclude')
+        include: getAndProcessPlaceInputs(placeContainerElem, '.place-include', 'single'),
+        excludes: getAndProcessPlaceInputs(placeContainerElem, '.place-exclude', 'multi')
       };
     } catch (error) {
       console.error(error);
@@ -123,8 +137,23 @@ function getEnteredPlaces() {
   return placeSpecs;
 }
 
-function getAndProcessPlaceInput(placeContainerElem, selector) {
-  let placeInputElem = placeContainerElem.querySelector(selector);
+function getAndProcessPlaceInputs(placeContainerElem, selector, amount='single') {
+  if (amount === 'single') {
+    const placeInputElem = placeContainerElem.querySelector(selector);
+    return getAndProcessPlaceInput(placeContainerElem, placeInputElem);
+  } else if (amount === 'multi') {
+    let places = [];
+    for (const placeInputElem of placeContainerElem.querySelectorAll(selector)) {
+      const place = getAndProcessPlaceInput(placeContainerElem, placeInputElem);
+      if (place) {
+        places.push(place);
+      }
+    }
+    return places;
+  }
+}
+
+function getAndProcessPlaceInput(placeContainerElem, placeInputElem) {
   if (placeInputElem === null) {
     return null;
   }
