@@ -11,14 +11,24 @@
   margin-bottom: 3px;
 }
 
-.place-input {
-  display: inline-block;
-  width: 150px;
+#place-input-labels {
+  margin-left: 40px;
+  font-weight: bold;
 }
 
-.place-delete {
+#exclude-label {
+  margin-left: 23px;
+}
+
+.place-container button {
   padding: 4px 8px;
   margin-bottom: 2px;
+}
+
+.place-input, .place-input-label {
+  display: inline-block;
+  width: 150px;
+  margin-right: 5px;
 }
 
 .place-alert {

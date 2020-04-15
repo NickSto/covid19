@@ -8,14 +8,14 @@ const PLOT_LAYOUT = {
   xaxis: {automargin: true},
 };
 
-export function plotPlaces(data, places) {
+export function plotPlaces(data, placeSpecs) {
   let plotData = [];
 
   let options = UI.getOptions();
 
-  for (let place of places) {
+  for (let placeSpec of placeSpecs) {
     try {
-      let placeData = getPlacePlotData(place, data, options);
+      let placeData = getPlacePlotData(placeSpec, data, options);
       plotData.push(placeData);
     } catch(error) {
       console.error(error);
@@ -68,14 +68,22 @@ function getPlotDescription(options) {
   return prefix+unit+suffix;
 }
 
-function getPlacePlotData(place, data, options) {
+function getPlacePlotData(placeSpec, data, options) {
+  let {include:place, exclude:excludedPlace} = placeSpec;
   // Get the raw confirmed cases counts.
   let dates = data.dates;
-  let placeCounts = data.counts.get(place);
-  if (! placeCounts) {
+  let placeData = data.counts.get(place);
+  if (! placeData) {
     throw `Place ${JSON.stringify(place)} not found.`;
   }
-  let counts = getPlaceCounts(data.counts.get(place), options.dataType);
+  let excludedData = null;
+  if (excludedPlace) {
+    excludedData = data.counts.get(excludedPlace);
+    if (! excludedData) {
+      throw `Excluded place ${JSON.stringify(excludedPlace)} not found.`;
+    }
+  }
+  let counts = getPlaceCounts(placeData, excludedData, options.dataType);
   [dates, counts] = rmNulls(dates, counts);
   // Apply the requested transformations.
   let yVals = null;
@@ -88,24 +96,49 @@ function getPlacePlotData(place, data, options) {
     yVals = counts;
   }
   if (options.perCapita) {
-    let population = Loader.PLACES.get(place).get('population');
-    if (!population) {
-      throw `No population found for ${JSON.stringify(place)}`;
-    }
+    let population = getPopulation(place, excludedPlace);
     yVals = divideByPop(yVals, population);
   }
   let displayName = Loader.PLACES.get(place).get('displayName');
+  if (excludedPlace) {
+    displayName += ' - ' + Loader.PLACES.get(excludedPlace).get('displayName');
+  }
   return {name:displayName, x:dates, y:yVals}
 }
 
-function getPlaceCounts(allPlaceCounts, dataType) {
+function getPlaceCounts(allPlaceCounts, allExcludedCounts, dataType) {
   if (dataType === 'mortality') {
     let cases = allPlaceCounts.get('cases');
     let deaths = allPlaceCounts.get('deaths');
+    if (allExcludedCounts) {
+      let exCases = allExcludedCounts.get('cases');
+      let exDeaths = allExcludedCounts.get('deaths');
+      cases = subtractSeries(cases, exCases);
+      deaths = subtractSeries(deaths, exDeaths);
+    }
     return countsToMortality(cases, deaths);
   } else {
-    return allPlaceCounts.get(dataType);
+    let counts = allPlaceCounts.get(dataType);
+    if (allExcludedCounts) {
+      let excludedCounts = allExcludedCounts.get(dataType);
+      counts = subtractSeries(counts, excludedCounts);
+    }
+    return counts;
   }
+}
+
+function subtractSeries(leftSeries, rightSeries) {
+  if (leftSeries.length !== rightSeries.length) {
+    console.error(
+      `Subtracting series of unequal lengths: ${leftSeries.length} != ${rightSeries.length}`
+    );
+  }
+  let diffSeries = [];
+  for (let i = 0; i < leftSeries.length && i < rightSeries.length; i++) {
+    let diff = leftSeries[i] - rightSeries[i];
+    diffSeries.push(diff);
+  }
+  return diffSeries;
 }
 
 function rmNulls(dates, counts) {
@@ -146,6 +179,21 @@ function getCountDiffs(counts) {
     lastCount = count;
   }
   return diffs;
+}
+
+function getPopulation(place, excludedPlace) {
+  let population = Loader.PLACES.get(place).get('population');
+  if (! population) {
+    throw `No population found for place ${JSON.stringify(place)}`;
+  }
+  if (excludedPlace) {
+    let excludedPop = Loader.PLACES.get(excludedPlace).get('population');
+    if (! excludedPop) {
+      throw `No population found for excluded place ${JSON.stringify(excludedPlace)}`;
+    }
+    population -= excludedPop;
+  }
+  return population;
 }
 
 function divideByPop(rawCounts, population) {

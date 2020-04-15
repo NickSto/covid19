@@ -16,8 +16,8 @@ export function wireUI(data, defaultPlaces) {
 }
 
 export function plotEnteredPlaces(data) {
-  let places = getEnteredPlaces();
-  Plotter.plotPlaces(data, places);
+  let placeSpecs = getEnteredPlaces();
+  Plotter.plotPlaces(data, placeSpecs);
 }
 
 function addPlaceInput(event, placeStr='') {
@@ -34,14 +34,19 @@ function addPlaceInput(event, placeStr='') {
   placeDeleteElem.addEventListener('click', deletePlaceInput);
   placeContainerElem.appendChild(placeDeleteElem);
   let placeInputElem = document.createElement('input');
-  placeInputElem.classList.add('place-input');
+  placeInputElem.classList.add('place-input', 'place-include');
   placeInputElem.type = 'text';
   placeInputElem.placeholder = 'Italy, New York, etc.';
   placeInputElem.value = placeStr;
   placeContainerElem.appendChild(placeInputElem);
+  let placeExceptElem = document.createElement('button');
+  placeExceptElem.classList.add('place-except','btn','btn-sm','btn-default');
+  placeExceptElem.textContent = '-';
+  placeExceptElem.title = 'except';
+  placeExceptElem.addEventListener('click', addExceptInput);
+  placeContainerElem.appendChild(placeExceptElem);
   let placeAlertElem = document.createElement('span');
   placeAlertElem.classList.add('place-alert', 'error', 'hidden');
-  placeAlertElem.textContent = "Did not recognize this place. Try checking the spelling.";
   placeContainerElem.appendChild(placeAlertElem);
   placeListElem.appendChild(placeContainerElem);
 }
@@ -50,46 +55,111 @@ function deletePlaceInput(event) {
   if (typeof event !== 'undefined') {
     event.preventDefault();
   }
-  let placeDeleteElem = event.target;
-  if (!(placeDeleteElem.tagName === 'BUTTON' && placeDeleteElem.classList.contains('place-delete'))) {
-    console.error(`deletePlaceInput() called on wrong element (a ${placeDeleteElem.tagName})`);
+  const placeDeleteElem = event.target;
+  if (
+      placeDeleteElem.tagName !== 'BUTTON' ||
+      ! placeDeleteElem.classList.contains('place-delete')
+  ) {
+    throw `deletePlaceInput() called on wrong element (a ${placeDeleteElem.tagName})`;
+  }
+  const placeContainerElem = placeDeleteElem.parentElement;
+  if (! placeContainerElem.classList.contains('place-container')) {
+    throw (
+      'Expected place-container element not found (instead got an element with classes "'+
+      `${placeContainerElem.classList}").`
+    );
+  }
+  placeContainerElem.remove();
+  const placeExcludeElems = document.getElementsByClassName('place-exclude');
+  if (placeExcludeElems.length === 0) {
+    const excludeLabelElem = document.getElementById('exclude-label');
+    excludeLabelElem.classList.add('hidden');
+  }
+}
+
+function addExceptInput(event) {
+  if (typeof event !== 'undefined') {
+    event.preventDefault();
+  }
+  const placeExceptElem = event.target;
+  if (
+      placeExceptElem.tagName !== 'BUTTON' ||
+      ! placeExceptElem.classList.contains('place-except')
+  ) {
+    throw `addExceptInput() called on wrong element (a ${placeExceptElem.tagName})`;
+  }
+  // Is there already an except input here?
+  if (placeExceptElem.parentElement.querySelector('.place-exclude')) {
     return;
   }
-  placeDeleteElem.parentElement.remove();
+  const placeExcludeElem = document.createElement('input');
+  placeExcludeElem.classList.add('place-input', 'place-exclude');
+  placeExcludeElem.type = 'text';
+  placeExcludeElem.placeholder = 'Italy, New York, etc.';
+  placeExceptElem.insertAdjacentElement('afterend', placeExcludeElem);
+  const excludeLabelElem = document.getElementById('exclude-label');
+  excludeLabelElem.classList.remove('hidden');
 }
 
 function getEnteredPlaces() {
-  let places = [];
+  let placeSpecs = [];
   const placeContainerElems = document.getElementsByClassName('place-container');
   for (let placeContainerElem of placeContainerElems) {
-    let placeInputElem = placeContainerElem.querySelector('.place-input');
-    let rawPlaceStr = placeInputElem.value
-    let place = parsePlace(rawPlaceStr);
-    if (place) {
-      places.push(place);
-      setPlaceAlert(placeInputElem, true);
-    } else {
-      console.error(`Place "${rawPlaceStr}" not found.`);
-      setPlaceAlert(placeInputElem, false);
+    let placeSpec;
+    try {
+      placeSpec = {
+        include: getAndProcessPlaceInput(placeContainerElem, '.place-include'),
+        exclude: getAndProcessPlaceInput(placeContainerElem, '.place-exclude')
+      };
+    } catch (error) {
+      console.error(error);
+      continue;
     }
+    if (placeSpec.include) {
+      placeSpecs.push(placeSpec);
+    }
+    rmPlaceAlert(placeContainerElem);
   }
-  return places;
+  return placeSpecs;
+}
+
+function getAndProcessPlaceInput(placeContainerElem, selector) {
+  let placeInputElem = placeContainerElem.querySelector(selector);
+  if (placeInputElem === null) {
+    return null;
+  }
+  let rawPlaceStr = placeInputElem.value.trim();
+  if (rawPlaceStr === '') {
+    return null;
+  }
+  let place = parsePlace(rawPlaceStr);
+  if (place) {
+    return place;
+  } else {
+    setPlaceAlert(placeContainerElem, rawPlaceStr);
+    throw `Place "${rawPlaceStr}" not found.`;
+  }
 }
 
 function parsePlace(rawPlaceStr) {
-  let placeStr = rawPlaceStr.trim().toLowerCase();
+  let placeStr = rawPlaceStr.toLowerCase();
   if (Loader.TRANSLATIONS.has(placeStr)) {
     placeStr = Loader.TRANSLATIONS.get(placeStr);
   }
   return Loader.INDEX.get(placeStr);
 }
 
-function setPlaceAlert(placeInputElem, valid) {
-  let placeAlertElem = placeInputElem.parentElement.querySelector('.place-alert');
-  if (valid) {
-    placeAlertElem.classList.add('hidden');
-  } else {
+function rmPlaceAlert(placeContainerElem) {
+  setPlaceAlert(placeContainerElem, false);
+}
+
+function setPlaceAlert(placeContainerElem, placeStr) {
+  let placeAlertElem = placeContainerElem.querySelector('.place-alert');
+  if (placeStr) {
+    placeAlertElem.textContent = `Did not recognize "${placeStr}". Try checking the spelling.`;
     placeAlertElem.classList.remove('hidden');
+  } else {
+    placeAlertElem.classList.add('hidden');
   }
   return;
 }
