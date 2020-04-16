@@ -138,3 +138,21 @@ export function parseDate(dateStr) {
   }
   return new Date(year, month-1, day);
 }
+
+export function arraysEqual(arr1, arr2, cmp) {
+  // Return true if the two arrays are identical, false otherwise.
+  // Comparing each pair of elements is done with the function `cmp`.
+  // By default, this just returns the `===` equality of the elements.
+  if (! cmp) {
+    cmp = (el1, el2) => el1 === el2;
+  }
+  if (arr1.length !== arr2.length) {
+    return false;
+  }
+  for (let i = 0; i < arr1.length; i++) {
+    if (! cmp(arr1[i], arr2[i])) {
+      return false;
+    }
+  }
+  return true;
+}

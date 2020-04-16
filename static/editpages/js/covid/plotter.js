@@ -25,7 +25,7 @@ export function plotPlaces(data, placeSpecs) {
   }
 
   const plotTitleElem = document.getElementById('plot-title');
-  let plotTitle = plotData.map(d => d.name).join(', ')+' '+getPlotDescription(options);
+  let plotTitle = getPlacesString(plotData.map(d => d.name))+' '+getPlotDescription(options);
 
   plotTitleElem.textContent = plotTitle;
 
@@ -41,6 +41,25 @@ export function plotPlaces(data, placeSpecs) {
 
   const plotContainer = document.getElementById('plot-container');
   Plotly.newPlot(plotContainer, plotData, layout);
+}
+
+function getPlacesString(displayNames) {
+  let placesList = [];
+  for (let displayName of displayNames) {
+    let primaryName = displayName.split(/ [+-] /)[0];
+    let suffix = '';
+    let hasPlus = displayName.includes(' + ');
+    let hasMinus = displayName.includes(' - ');
+    if (hasPlus && hasMinus) {
+      suffix = '±';
+    } else if (hasPlus) {
+      suffix = '+';
+    } else if (hasMinus) {
+      suffix = '-';
+    }
+    placesList.push(primaryName+suffix);
+  }
+  return placesList.join(', ');
 }
 
 function getPlotDescription(options) {
@@ -71,11 +90,12 @@ function getPlotDescription(options) {
 }
 
 function getPlacePlotData(placeSpec, data, options) {
-  let {include:place, excludes:excludedPlaces} = placeSpec;
+  let {includes:places, excludes:excludedPlaces} = placeSpec;
   // Get the raw confirmed cases counts.
   let dates = data.dates;
-  let [placeData, excludedDatas] = getPlacesData(data, place, excludedPlaces);
-  let counts = getPlaceCounts(placeData, excludedDatas, options.dataType);
+  let placesData = getPlacesData(data, places)
+  let excludedDatas = getPlacesData(data, excludedPlaces);
+  let counts = getPlaceCounts(placesData, excludedDatas, options.dataType);
   [dates, counts] = rmNulls(dates, counts);
   // Apply the requested transformations.
   let yVals = null;
@@ -88,51 +108,48 @@ function getPlacePlotData(placeSpec, data, options) {
     yVals = counts;
   }
   if (options.perCapita) {
-    let population = getPopulation(place, excludedPlaces);
+    let population = getPopulation(places) - getPopulation(excludedPlaces);
     yVals = divideByPop(yVals, population);
   }
-  let displayName = Loader.PLACES.get(place).get('displayName');
-  for (let excludedPlace of excludedPlaces) {
-    displayName += ' - ' + Loader.PLACES.get(excludedPlace).get('displayName');
-  }
+  let displayName = concatDisplayName(places, excludedPlaces);
   return {name:displayName, x:dates, y:yVals}
 }
 
-function getPlacesData(data, includedPlace, excludedPlaces) {
-  let placeData = data.counts.get(includedPlace);
-  if (! placeData) {
-    throw `Place ${JSON.stringify(includedPlace)} not found.`;
-  }
-  let excludedDatas = [];
-  for (let excludedPlace of excludedPlaces) {
-    let excludedData = data.counts.get(excludedPlace);
-    if (! excludedData) {
-      throw `Excluded place ${JSON.stringify(excludedPlace)} not found.`;
+function getPlacesData(data, places) {
+  let placeDatas = [];
+  for (let place of places) {
+    let placeData = data.counts.get(place);
+    if (! placeData) {
+      throw `Excluded place ${JSON.stringify(place)} not found.`;
     }
-    excludedDatas.push(excludedData);
+    placeDatas.push(placeData);
   }
-  return [placeData, excludedDatas];
+  return placeDatas;
 }
 
-function getPlaceCounts(allPlaceCounts, allExcludedsCounts, dataType) {
+function getPlaceCounts(allIncludedCounts, allExcludedsCounts, dataType) {
+  let counts;
   if (dataType === 'mortality') {
-    let cases = allPlaceCounts.get('cases');
-    let deaths = allPlaceCounts.get('deaths');
-    if (allExcludedsCounts.length > 0) {
-      let exCases = addSeries(allExcludedsCounts.map(c => c.get('cases')));
-      let exDeaths = addSeries(allExcludedsCounts.map(c => c.get('deaths')));
-      cases = subtractSeries(cases, exCases);
-      deaths = subtractSeries(deaths, exDeaths);
-    }
-    return countsToMortality(cases, deaths);
+    counts = getMortalityCounts(allIncludedCounts, allExcludedsCounts);
   } else {
-    let counts = allPlaceCounts.get(dataType);
-    if (allExcludedsCounts.length > 0) {
-      let excludedCounts = addSeries(allExcludedsCounts.map(c => c.get(dataType)));
-      counts = subtractSeries(counts, excludedCounts);
-    }
-    return counts;
+    counts = getRawPlaceCounts(allIncludedCounts, allExcludedsCounts, dataType);
   }
+  return counts;
+}
+
+function getMortalityCounts(allIncludedCounts, allExcludedsCounts) {
+  let cases = getRawPlaceCounts(allIncludedCounts, allExcludedsCounts, 'cases');
+  let deaths = getRawPlaceCounts(allIncludedCounts, allExcludedsCounts, 'deaths');
+  return countsToMortality(cases, deaths);
+}
+
+function getRawPlaceCounts(allIncludedCounts, allExcludedsCounts, dataType) {
+  let counts = addSeries(allIncludedCounts.map(c => c.get(dataType)));
+  if (allExcludedsCounts.length > 0) {
+    let excludedCounts = addSeries(allExcludedsCounts.map(c => c.get(dataType)));
+    counts = subtractSeries(counts, excludedCounts);
+  }
+  return counts;
 }
 
 function addSeries(serieses) {
@@ -206,20 +223,16 @@ function getCountDiffs(counts) {
   return diffs;
 }
 
-function getPopulation(place, excludedPlaces) {
-  let population = Loader.PLACES.get(place).get('population');
-  if (! population) {
-    throw `No population found for place ${JSON.stringify(place)}`;
-  }
-  let excludedPop = 0;
-  for (let excludedPlace of excludedPlaces) {
-    let excludedPop = Loader.PLACES.get(excludedPlace).get('population');
-    if (! excludedPop) {
-      throw `No population found for excluded place ${JSON.stringify(excludedPlace)}`;
+function getPopulation(places) {
+  let population = 0;
+  for (let place of places) {
+    let subPop = Loader.PLACES.get(place).get('population');
+    if (! subPop) {
+      throw `No population found for place ${JSON.stringify(place)}`;
     }
-    excludedPop += excludedPop;
+    population += subPop;
   }
-  return population - excludedPop;
+  return population;
 }
 
 function divideByPop(rawCounts, population) {
@@ -242,6 +255,24 @@ function countsToMortality(caseCounts, deathCounts, thres=10) {
     }
   }
   return mortalities;
+}
+
+function concatDisplayName(includedPlaces, excludedPlaces) {
+  let includedNames = [];
+  for (let place of includedPlaces) {
+    let displayName = Loader.PLACES.get(place).get('displayName');
+    includedNames.push(displayName);
+  }
+  let excludedNames = [];
+  for (let place of excludedPlaces) {
+    let displayName = Loader.PLACES.get(place).get('displayName');
+    excludedNames.push(displayName);
+  }
+  let displayName = includedNames.join(' + ');
+  if (excludedNames.length > 0) {
+    displayName += ' - ' + excludedNames.join(' - ');
+  }
+  return displayName;
 }
 
 /* Warning: This is a very limited deep copy, basically only made for simple situations like objects

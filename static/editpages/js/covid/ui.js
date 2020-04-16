@@ -25,27 +25,39 @@ function addPlaceInput(event, placeStr='') {
     event.preventDefault();
   }
   const placeListElem = document.getElementById('place-list');
-  let placeContainerElem = document.createElement('p');
+  const placeContainerElem = document.createElement('p');
   placeContainerElem.classList.add('place-container');
-  let placeDeleteElem = document.createElement('button');
+  const placeDeleteElem = document.createElement('button');
   placeDeleteElem.classList.add('place-delete','btn','btn-sm','btn-default');
   placeDeleteElem.textContent = '✕';
   placeDeleteElem.title = 'delete';
   placeDeleteElem.addEventListener('click', deletePlaceInput);
   placeContainerElem.appendChild(placeDeleteElem);
-  let placeInputElem = document.createElement('input');
+  const inputContainerElem = document.createElement('span');
+  inputContainerElem.classList.add('place-input-container');
+  const placeInputElem = document.createElement('input');
   placeInputElem.classList.add('place-input', 'place-include');
   placeInputElem.type = 'text';
   placeInputElem.placeholder = 'Italy, New York, etc.';
   placeInputElem.value = placeStr;
-  placeContainerElem.appendChild(placeInputElem);
-  let placeExceptElem = document.createElement('button');
-  placeExceptElem.classList.add('place-except','btn','btn-sm','btn-default');
-  placeExceptElem.textContent = '-';
-  placeExceptElem.title = 'except';
-  placeExceptElem.addEventListener('click', addExceptInput);
-  placeContainerElem.appendChild(placeExceptElem);
-  let placeAlertElem = document.createElement('span');
+  inputContainerElem.appendChild(placeInputElem)
+  placeContainerElem.appendChild(inputContainerElem);
+  const buttonContainerElem = document.createElement('span');
+  buttonContainerElem.classList.add('place-input-modifiers');
+  const placePlusElem = document.createElement('button');
+  placePlusElem.classList.add('place-plus','btn','btn-sm','btn-default');
+  placePlusElem.textContent = '+';
+  placePlusElem.title = 'Add another place';
+  placePlusElem.addEventListener('click', event => addSubPlaceInput(event, 'plus'));
+  buttonContainerElem.appendChild(placePlusElem);
+  const placeMinusElem = document.createElement('button');
+  placeMinusElem.classList.add('place-minus','btn','btn-sm','btn-default');
+  placeMinusElem.textContent = '-';
+  placeMinusElem.title = 'Exclude a subregion';
+  placeMinusElem.addEventListener('click', event => addSubPlaceInput(event, 'minus'));
+  buttonContainerElem.appendChild(placeMinusElem);
+  placeContainerElem.appendChild(buttonContainerElem);
+  const placeAlertElem = document.createElement('span');
   placeAlertElem.classList.add('place-alert', 'error', 'hidden');
   placeContainerElem.appendChild(placeAlertElem);
   placeListElem.appendChild(placeContainerElem);
@@ -70,48 +82,71 @@ function deletePlaceInput(event) {
   setExcludeLabels();
 }
 
-function addExceptInput(event) {
+const INPUT_TYPE_DATA = {
+  plus:  {action:'include', operand:'+'},
+  minus: {action:'exclude', operand:'-'},
+}
+function addSubPlaceInput(event, type) {
+  const typeData = INPUT_TYPE_DATA[type];
   if (typeof event !== 'undefined') {
     event.preventDefault();
   }
-  const exceptElem = event.target;
-  if (exceptElem.tagName !== 'BUTTON' || ! exceptElem.classList.contains('place-except')) {
-    throw `addExceptInput() called on wrong element (a ${exceptElem.tagName})`;
+  // Validate assumptions: make sure the event target is what we expect.
+  const buttonElem = event.target;
+  if (buttonElem.tagName !== 'BUTTON' || ! buttonElem.classList.contains(`place-${type}`)) {
+    throw (
+      `addSubPlaceInput() called on wrong element (a <${buttonElem.tagName} `+
+      `class="${buttonElem.classList}">)`
+    );
   }
-  const excludeElem = document.createElement('input');
-  excludeElem.classList.add('place-input', 'place-exclude');
-  excludeElem.type = 'text';
-  excludeElem.placeholder = 'Italy, New York, etc.';
-  const excludeElems = exceptElem.parentElement.querySelectorAll('.place-exclude');
-  if (excludeElems.length >= 1) {
-    excludeElem.classList.add('place-excludes');
+  const buttonContainerElem = buttonElem.parentElement;
+  if (
+    buttonContainerElem.tagName !== 'SPAN' ||
+    ! buttonContainerElem.classList.contains('place-input-modifiers')
+  ) {
+    throw (
+      `Parent of place input button not as expected. Saw instead a <${buttonContainerElem.tagName} `+
+      `class="${buttonContainerElem.classList}">.`
+    );
   }
-  exceptElem.insertAdjacentElement('afterend', excludeElem);
-  const exceptElem2 = document.createElement('button');
-  exceptElem2.classList.add('place-except','btn','btn-sm','btn-default');
-  exceptElem2.textContent = '-';
-  exceptElem2.title = 'except';
-  exceptElem2.addEventListener('click', addExceptInput);
-  excludeElem.insertAdjacentElement('afterend', exceptElem2);
+  // Now add the new elements.
+  const inputContainerElem = document.createElement('span');
+  inputContainerElem.classList.add('place-input-container');
+  const operandElem = document.createElement('span');
+  operandElem.classList.add('place-operand');
+  operandElem.textContent = typeData.operand;
+  inputContainerElem.appendChild(operandElem);
+  const inputElem = document.createElement('input');
+  inputElem.classList.add('place-input', `place-${typeData.action}`);
+  inputElem.type = 'text';
+  inputElem.placeholder = 'Italy, New York, etc.';
+  inputContainerElem.appendChild(inputElem);
+  // Insert right before the buttons.
+  buttonContainerElem.insertAdjacentElement('beforebegin', inputContainerElem);
   setExcludeLabels();
 }
 
 function setExcludeLabels() {
-  const excludeLabelElem = document.getElementById('exclude-label');
-  const excludesLabelElem = document.getElementById('excludes-label');
-  const excludeElems = document.getElementsByClassName('place-exclude');
-  const excludeExtraElems = document.getElementsByClassName('place-excludes');
-  if (excludeElems.length === 0 && excludeExtraElems.length === 0) {
-    excludeLabelElem.classList.add('hidden');
-    excludesLabelElem.classList.add('hidden');
-  } else if (excludeElems.length >= 1 && excludeExtraElems.length === 0) {
-    excludeLabelElem.classList.remove('hidden');
-    excludesLabelElem.classList.add('hidden');
-  } else if (excludeElems.length >= 1 && excludeExtraElems.length >= 1) {
-    excludeLabelElem.classList.add('hidden');
-    excludesLabelElem.classList.remove('hidden');
+  const modifierLabelElem = document.getElementById('modifier-label');
+  const modifiersLabelElem = document.getElementById('modifiers-label');
+  let maxInputs = 0;
+  for (let containerElem of document.getElementsByClassName('place-container')) {
+    const inputElems = containerElem.querySelectorAll('.place-input');
+    if (inputElems.length > maxInputs) {
+      maxInputs = inputElems.length;
+    }
+  }
+  if (maxInputs === 1) {
+    modifierLabelElem.classList.add('hidden');
+    modifiersLabelElem.classList.add('hidden');
+  } else if (maxInputs === 2) {
+    modifierLabelElem.classList.remove('hidden');
+    modifiersLabelElem.classList.add('hidden');
+  } else if (maxInputs >= 3) {
+    modifierLabelElem.classList.add('hidden');
+    modifiersLabelElem.classList.remove('hidden');
   } else {
-    throw `Invalid combination of .place-exclude and .place-excludes elements.`;
+    throw `Invalid number of .place-input elements (${maxInputs}).`;
   }
 }
 
@@ -122,14 +157,14 @@ function getEnteredPlaces() {
     let placeSpec;
     try {
       placeSpec = {
-        include: getAndProcessPlaceInputs(placeContainerElem, '.place-include', 'single'),
-        excludes: getAndProcessPlaceInputs(placeContainerElem, '.place-exclude', 'multi')
+        includes: getAndProcessPlaceInputs(placeContainerElem, '.place-include'),
+        excludes: getAndProcessPlaceInputs(placeContainerElem, '.place-exclude')
       };
     } catch (error) {
       console.error(error);
       continue;
     }
-    if (placeSpec.include) {
+    if (placeSpec.includes.length >= 1) {
       placeSpecs.push(placeSpec);
     }
     rmPlaceAlert(placeContainerElem);
@@ -137,20 +172,15 @@ function getEnteredPlaces() {
   return placeSpecs;
 }
 
-function getAndProcessPlaceInputs(placeContainerElem, selector, amount='single') {
-  if (amount === 'single') {
-    const placeInputElem = placeContainerElem.querySelector(selector);
-    return getAndProcessPlaceInput(placeContainerElem, placeInputElem);
-  } else if (amount === 'multi') {
-    let places = [];
-    for (const placeInputElem of placeContainerElem.querySelectorAll(selector)) {
-      const place = getAndProcessPlaceInput(placeContainerElem, placeInputElem);
-      if (place) {
-        places.push(place);
-      }
+function getAndProcessPlaceInputs(placeContainerElem, selector) {
+  let places = [];
+  for (const placeInputElem of placeContainerElem.querySelectorAll(selector)) {
+    const place = getAndProcessPlaceInput(placeContainerElem, placeInputElem);
+    if (place) {
+      places.push(place);
     }
-    return places;
   }
+  return places;
 }
 
 function getAndProcessPlaceInput(placeContainerElem, placeInputElem) {

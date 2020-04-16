@@ -16,6 +16,17 @@
   font-weight: bold;
 }
 
+.place-input-label-extra {
+  margin-left: 8px;
+}
+
+.place-operand {
+  display: inline-block;
+  margin-right: 5px;
+  width: 5px;
+  text-align: center;
+}
+
 #exclude-label, #excludes-label {
   margin-left: 23px;
 }
@@ -27,8 +38,11 @@
 
 .place-input, .place-input-label {
   display: inline-block;
-  width: 150px;
   margin-right: 5px;
+}
+
+.place-input, .place-input-label-basic {
+  width: 150px;
 }
 
 .place-alert {
