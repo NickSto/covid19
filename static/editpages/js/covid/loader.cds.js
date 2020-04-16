@@ -79,7 +79,7 @@ function getPlaceKeys(rawPlaceData) {
 
 function storePlaceData(place, rawPlaceData) {
   let placeData = Loader.PLACES.get(place);
-  if (!placeData) {
+  if (! placeData) {
     placeData = new Map();
     Loader.PLACES.set(place, placeData);
     let [key, division] = Loader.getMostSpecificKey(place);
@@ -87,14 +87,14 @@ function storePlaceData(place, rawPlaceData) {
       placeData.set(key, defaultFxn());
     }
   }
-  if (!placeData.has('population')) {
+  if (! placeData.get('population')) {
     let population = rawPlaceData.population;
-    if (!population) {
+    if (! population) {
       population = null;
     }
     placeData.set('population', population);
   }
-  if (!placeData.has('displayName')) {
+  if (! placeData.get('displayName')) {
     let displayName = getDisplayName(place, rawPlaceData);
     placeData.set('displayName', displayName);
   }
