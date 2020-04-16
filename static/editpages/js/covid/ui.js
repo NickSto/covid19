@@ -24,42 +24,59 @@ function addPlaceInput(event, placeStr='') {
   if (typeof event !== 'undefined' && event) {
     event.preventDefault();
   }
+  // <div id="place-list">
   const placeListElem = document.getElementById('place-list');
+  // <p class="place-container">
   const placeContainerElem = document.createElement('p');
   placeContainerElem.classList.add('place-container');
+  // <button class="place-delete">
   const placeDeleteElem = document.createElement('button');
   placeDeleteElem.classList.add('place-delete','btn','btn-sm','btn-default');
   placeDeleteElem.textContent = '✕';
   placeDeleteElem.title = 'delete';
   placeDeleteElem.addEventListener('click', deletePlaceInput);
   placeContainerElem.appendChild(placeDeleteElem);
+  // <div class="place-subcontainer">
+  const subContainerElem = document.createElement('div');
+  subContainerElem.classList.add('place-subcontainer');
+  // <span class="place-input-container">
   const inputContainerElem = document.createElement('span');
   inputContainerElem.classList.add('place-input-container');
+  // <input class="place-input place-include">
   const placeInputElem = document.createElement('input');
   placeInputElem.classList.add('place-input', 'place-include');
   placeInputElem.type = 'text';
   placeInputElem.placeholder = 'Italy, New York, etc.';
   placeInputElem.value = placeStr;
   inputContainerElem.appendChild(placeInputElem)
-  placeContainerElem.appendChild(inputContainerElem);
+  subContainerElem.appendChild(inputContainerElem);
+  // <span class="place-input-modifiers">
   const buttonContainerElem = document.createElement('span');
   buttonContainerElem.classList.add('place-input-modifiers');
+  // <button class="place-plus">
   const placePlusElem = document.createElement('button');
   placePlusElem.classList.add('place-plus','btn','btn-sm','btn-default');
   placePlusElem.textContent = '+';
   placePlusElem.title = 'Add another place';
   placePlusElem.addEventListener('click', event => addSubPlaceInput(event, 'plus'));
   buttonContainerElem.appendChild(placePlusElem);
+  // <button class="place-minus">
   const placeMinusElem = document.createElement('button');
   placeMinusElem.classList.add('place-minus','btn','btn-sm','btn-default');
   placeMinusElem.textContent = '-';
   placeMinusElem.title = 'Exclude a subregion';
   placeMinusElem.addEventListener('click', event => addSubPlaceInput(event, 'minus'));
   buttonContainerElem.appendChild(placeMinusElem);
-  placeContainerElem.appendChild(buttonContainerElem);
+  subContainerElem.appendChild(buttonContainerElem);
+  // <span class="place-alert error hidden">
   const placeAlertElem = document.createElement('span');
   placeAlertElem.classList.add('place-alert', 'error', 'hidden');
-  placeContainerElem.appendChild(placeAlertElem);
+  subContainerElem.appendChild(placeAlertElem);
+  placeContainerElem.appendChild(subContainerElem);
+  // <div class="clearfix">
+  const clearfixElem = document.createElement('div');
+  clearfixElem.classList.add('clearfix');
+  placeContainerElem.appendChild(clearfixElem);
   placeListElem.appendChild(placeContainerElem);
 }
 
@@ -74,7 +91,7 @@ function deletePlaceInput(event) {
   const placeContainerElem = deleteElem.parentElement;
   if (! placeContainerElem.classList.contains('place-container')) {
     throw (
-      'Expected place-container element not found (instead got an element with classes "'+
+      'Expected place-container element not found (instead got an element with class="'+
       `${placeContainerElem.classList}").`
     );
   }
@@ -110,12 +127,15 @@ function addSubPlaceInput(event, type) {
     );
   }
   // Now add the new elements.
+  // <span class="place-input-container">
   const inputContainerElem = document.createElement('span');
   inputContainerElem.classList.add('place-input-container');
+  // <span class="place-operand">
   const operandElem = document.createElement('span');
   operandElem.classList.add('place-operand');
   operandElem.textContent = typeData.operand;
   inputContainerElem.appendChild(operandElem);
+  // <input class="place-input place-[action]">
   const inputElem = document.createElement('input');
   inputElem.classList.add('place-input', `place-${typeData.action}`);
   inputElem.type = 'text';
