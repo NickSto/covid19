@@ -85,18 +85,11 @@ function deletePlaceInput(event) {
     event.preventDefault();
   }
   const deleteElem = event.target;
-  if (deleteElem.tagName !== 'BUTTON' || ! deleteElem.classList.contains('place-delete')) {
-    throw `deletePlaceInput() called on wrong element (a ${deleteElem.tagName})`;
-  }
+  validateElement(deleteElem, 'button', 'place-delete');
   const placeContainerElem = deleteElem.parentElement;
-  if (! placeContainerElem.classList.contains('place-container')) {
-    throw (
-      'Expected place-container element not found (instead got an element with class="'+
-      `${placeContainerElem.classList}").`
-    );
-  }
+  validateElement(placeContainerElem, placeContainerElem.tagName, 'place-container');
   placeContainerElem.remove();
-  setExcludeLabels();
+  setSubPlaceLabels();
 }
 
 const INPUT_TYPE_DATA = {
@@ -110,30 +103,19 @@ function addSubPlaceInput(event, type) {
   }
   // Validate assumptions: make sure the event target is what we expect.
   const buttonElem = event.target;
-  if (buttonElem.tagName !== 'BUTTON' || ! buttonElem.classList.contains(`place-${type}`)) {
-    throw (
-      `addSubPlaceInput() called on wrong element (a <${buttonElem.tagName} `+
-      `class="${buttonElem.classList}">)`
-    );
-  }
+  validateElement(buttonElem, 'button', `place-${type}`);
   const buttonContainerElem = buttonElem.parentElement;
-  if (
-    buttonContainerElem.tagName !== 'SPAN' ||
-    ! buttonContainerElem.classList.contains('place-input-modifiers')
-  ) {
-    throw (
-      `Parent of place input button not as expected. Saw instead a <${buttonContainerElem.tagName} `+
-      `class="${buttonContainerElem.classList}">.`
-    );
-  }
+  validateElement(buttonContainerElem, 'span', 'place-input-modifiers');
   // Now add the new elements.
   // <span class="place-input-container">
   const inputContainerElem = document.createElement('span');
   inputContainerElem.classList.add('place-input-container');
     // <span class="place-operand">
-    const operandElem = document.createElement('span');
-    operandElem.classList.add('place-operand');
+    const operandElem = document.createElement('button');
+    operandElem.classList.add('place-operand', 'btn', 'btn-sm', 'btn-default');
+    operandElem.title = 'Remove the text box to the right';
     operandElem.textContent = typeData.operand;
+    operandElem.addEventListener('click', deleteSubPlaceInput);
     inputContainerElem.appendChild(operandElem);
     // <input class="place-input place-[action]">
     const inputElem = document.createElement('input');
@@ -143,10 +125,33 @@ function addSubPlaceInput(event, type) {
   inputContainerElem.appendChild(inputElem);
   // Insert right before the buttons.
   buttonContainerElem.insertAdjacentElement('beforebegin', inputContainerElem);
-  setExcludeLabels();
+  setSubPlaceLabels();
 }
 
-function setExcludeLabels() {
+function deleteSubPlaceInput(event) {
+  if (typeof event !== 'undefined') {
+    event.preventDefault();
+  }
+  // Validate assumptions: make sure the event target is what we expect.
+  const buttonElem = event.target;
+  validateElement(buttonElem, 'button', 'place-operand');
+  const buttonContainerElem = buttonElem.parentElement;
+  validateElement(buttonContainerElem, 'span', 'place-input-container');
+  // Delete the container.
+  buttonContainerElem.remove();
+  setSubPlaceLabels();
+}
+
+function validateElement(element, tagName, className) {
+  if (element.tagName !== tagName.toUpperCase() || ! element.classList.contains(className)) {
+    throw (
+      `Wrong element: expected a <${tagName} class="${className}">, got a `+
+      `<${element.tagName.toLowerCase()} class="${element.classList}">.`
+    );
+  }
+}
+
+function setSubPlaceLabels() {
   const modifierLabelElem = document.getElementById('modifier-label');
   const modifiersLabelElem = document.getElementById('modifiers-label');
   let maxInputs = 0;
