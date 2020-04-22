@@ -1,6 +1,6 @@
 {
   "world": {"displayName": "World", "population": 7794798739},
-  "china": {"displayName": "China", "population": 1433783686, "iso3166":"CHN", "aliases": ["mainland china"],
+  "china": {"displayName": "China", "population": 1433783686, "iso3166": "CHN", "aliases": ["mainland china"],
     "regions": {
       "guangdong": {"displayName": "Guangdong", "population": 111690000},
       "shandong": {"displayName": "Shandong", "population": 100060000},
@@ -97,6 +97,61 @@
       "american samoa": {"displayName": "American Samoa", "population": 55641, "code": "AS"},
       "northern mariana islands": {"displayName": "Northern Mariana Islands", "population": 55194, "code": "MP"}
     }
+  },
+  "dc metro": {"displayName": "DC metro", "group": true, "aliases": ["dc region", "dc area"],
+    "places": [
+      ["us", "district of columbia", null, null],
+      ["us", "maryland", "montgomery county", null],
+      ["us", "maryland", "prince george's county", null],
+      ["us", "virginia", "arlington county", null],
+      ["us", "virginia", "alexandria city", null]
+    ]
+  },
+  "nyc metro": {"displayName": "NYC metro", "group": true, "aliases": ["nyc region", "nyc area"],
+    "places": [
+      ["us", "new york", "new york county", null],
+      ["us", "new york", "kings county", null],
+      ["us", "new york", "queens county", null],
+      ["us", "new york", "bronx county", null],
+      ["us", "new york", "richmond county", null],
+      ["us", "new york", "nassau county", null],
+      ["us", "new york", "westchester county", null],
+      ["us", "new york", "rockland county", null],
+      ["us", "new jersey", "hudson county", null]
+    ]
+  },
+  "nyc": {"displayName": "NYC", "group": true, "aliases": ["new york city"],
+    "places": [
+      ["us", "new york", "new york county", null],
+      ["us", "new york", "kings county", null],
+      ["us", "new york", "queens county", null],
+      ["us", "new york", "bronx county", null],
+      ["us", "new york", "richmond county", null]
+    ]
+  },
+  "bay area": {"displayName": "Bay Area", "group": true,
+    "places": [
+      ["us", "california", "san mateo county", null],
+      ["us", "california", "santa clara county", null],
+      ["us", "california", "san francisco county", null]
+    ]
+  },
+  "az reservations": {"displayName": "Arizona reservations", "group": true, "aliases": ["indian reservations", "indian counties"],
+    "places": [
+      ["us", "arizona", "navajo county", null],
+      ["us", "arizona", "coconino county", null],
+      ["us", "arizona", "apache county", null]
+    ]
+  },
+  "harrisburg": {"displayName": "Harrisburg area", "group": true, "aliases": ["harrisburg metro", "harrisburg area"],
+    "places": [
+      ["us", "pennsylvania", "dauphin county", null],
+      ["us", "pennsylvania", "perry county", null],
+      ["us", "pennsylvania", "cumberland county", null],
+      ["us", "pennsylvania", "york county", null],
+      ["us", "pennsylvania", "lebanon county", null],
+      ["us", "pennsylvania", "lancaster county", null]
+    ]
   },
   "indonesia": {"displayName": "Indonesia", "population": 270625568, "iso3166": "IDN"},
   "pakistan": {"displayName": "Pakistan", "population": 216565318, "iso3166": "PAK"},

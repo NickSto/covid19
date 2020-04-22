@@ -6,10 +6,11 @@ const DEFAULT_PLACES = ['Lombardy', 'New York', 'Italy', 'US'];
 
 function init() {
   const linkElem = document.getElementById('json-link');
+  const url = linkElem.href+'?via=js';
   function callback(event) {
-    Loader.initPlaces(event, loadDataAndWireUI);
+    Loader.initPlaces(event, loadDataAndWireUI, url);
   }
-  Loader.makeRequest(linkElem.href+'?via=js', callback, 'json');
+  Loader.makeRequest(url, callback, 'json');
 }
 
 function loadDataAndWireUI() {

@@ -12,6 +12,7 @@ export const DIVISION_ALIASES = {country:'country', region:'state', county:'coun
 export const PLACES = new Utils.MultiKeyMap();
 export const INDEX = new Map();
 export const TRANSLATIONS = new Map();
+export const PLACE_GROUPS = new Map();
 // Make reference for the keys for Maps at each division in PLACES.
 function arr() {return [];}
 function nul() {return null;}
@@ -138,18 +139,24 @@ function hasMoreSpecificValue(index, name, division) {
   return false;
 }
 
-export function initPlaces(event, callback) {
-  // Load constants from external file.
+export function initPlaces(event, callback, url) {
+  // Load geographic data from external file.
   let xhr = event.target;
   if (xhr.status == 200) {
-    if (!xhr.response) {
-      throw (
-        `Request for ${xhr.responseUrl} failed: Received HTTP ${xhr.status}, but xhr.response is `+
-        `${xhr.response}`
+    if (! xhr.response) {
+      let message = (
+        `Request for ${url} failed: Received HTTP ${xhr.status}, but xhr.response is `+
+        `${xhr.response}. event.type: ${event.type}, event.loaded: ${event.loaded} bytes.`
       );
+      if (event.loaded && xhr.response === null && event.type === 'loadend') {
+        message += ' Check for JSON syntax errors in the Network tab (Response section).';
+      }
+      throw message;
     }
-    placesToMKM(xhr.response, PLACES);
+    let placesObj = xhr.response;
+    placesToMKM(placesObj, PLACES);
     parsePlaces(PLACES, TRANSLATIONS);
+    parsePlaceGroups(placesObj, PLACE_GROUPS);
     if (typeof callback === 'function') {
       callback();
     }
@@ -160,6 +167,9 @@ export function initPlaces(event, callback) {
 
 function placesToMKM(placesObj, placesMKM) {
   for (let [country, countryData] of Object.entries(placesObj)) {
+    if (countryData.group) {
+      continue;
+    }
     if (country === 'world') {
       country = null;
     }
@@ -228,6 +238,21 @@ function parsePlaces(places, translations) {
     }
   }
   worldData.set('codes', countryCodes);
+}
+
+function parsePlaceGroups(placesObj, placeGroups) {
+  for (let [groupName, groupObj] of Object.entries(placesObj)) {
+    if (!groupObj.group) {
+      continue;
+    }
+    let group = new Map();
+    group.set('displayName', groupObj.displayName);
+    group.set('places', groupObj.places);
+    placeGroups.set(groupName, group);
+    for (let alias of (groupObj.aliases || [])) {
+      placeGroups.set(alias, group);
+    }
+  }
 }
 
 export function makeRequest(url, callback, respType='') {

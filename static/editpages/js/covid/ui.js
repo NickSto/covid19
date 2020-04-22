@@ -200,9 +200,11 @@ function getEnteredPlaces() {
 function getAndProcessPlaceInputs(placeContainerElem, selector) {
   let places = [];
   for (const placeInputElem of placeContainerElem.querySelectorAll(selector)) {
-    const place = getAndProcessPlaceInput(placeContainerElem, placeInputElem);
-    if (place) {
-      places.push(place);
+    const subPlaces = getAndProcessPlaceInput(placeContainerElem, placeInputElem);
+    if (subPlaces !== null) {
+      for (let place of subPlaces) {
+        places.push(place);
+      }
     }
   }
   return places;
@@ -216,9 +218,9 @@ function getAndProcessPlaceInput(placeContainerElem, placeInputElem) {
   if (rawPlaceStr === '') {
     return null;
   }
-  let place = parsePlace(rawPlaceStr);
-  if (place) {
-    return place;
+  let places = parsePlace(rawPlaceStr);
+  if (places.length > 0) {
+    return places;
   } else {
     setPlaceAlert(placeContainerElem, rawPlaceStr);
     throw `Place "${rawPlaceStr}" not found.`;
@@ -226,13 +228,19 @@ function getAndProcessPlaceInput(placeContainerElem, placeInputElem) {
 }
 
 function parsePlace(rawPlaceStr) {
+  let places = [];
   let placeStr = rawPlaceStr.toLowerCase();
   let place = Loader.INDEX.get(placeStr);
   if (! place) {
     // Is it an (all caps) region code?
     place = Loader.INDEX.get(rawPlaceStr);
   }
-  return place;
+  if (Loader.PLACE_GROUPS.has(placeStr)) {
+    places = Loader.PLACE_GROUPS.get(placeStr).get('places');
+  } else if (place) {
+    places = [place];
+  }
+  return places;
 }
 
 function rmPlaceAlert(placeContainerElem) {
