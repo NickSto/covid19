@@ -116,6 +116,10 @@ export function dateToDayNumber(date) {
 
 export function dayNumberToDate(day) {
   let milliseconds = START_DATE.getTime() + day*24*60*60*1000;
+  // Daylight savings adjustment kludge.
+  if (milliseconds > 1583683200000) {
+    milliseconds -= 60*60*1000;
+  }
   return new Date(milliseconds);
 }
 
