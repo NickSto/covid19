@@ -96,8 +96,8 @@
   vertical-align: text-bottom;
 }
 
-.number-input {
-  width: 30px;
+input[type="number"] {
+  width: 45px;
   text-align: center;
 }
 

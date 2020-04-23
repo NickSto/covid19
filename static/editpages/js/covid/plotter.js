@@ -15,7 +15,7 @@ const PLOT_LAYOUT = {
 export function plotPlaces(data, placeSpecs) {
   let plotData = [];
   let options = UI.getOptions();
-  let smooth = ! isNaN(options.smoothing);
+  let smooth = ! isNaN(options.smoothing) && options.smoothing > 1;
 
   for (let [i, placeSpec] of placeSpecs.entries()) {
     try {

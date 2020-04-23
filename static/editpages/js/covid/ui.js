@@ -267,10 +267,12 @@ export function getOptions() {
         options.dataType = optionElem.value;
       }
     } else if (optionElem.type === 'text') {
+      options[optionElem.name] = optionElem.value;
+    } else if (optionElem.type === 'number'){
       let value = optionElem.value;
       if (optionElem.dataset.type === 'integer') {
         value = parseInt(value);
-      } else if (optionElem.dataset.type === 'float') {
+      } else {
         value = parseFloat(value);
       }
       options[optionElem.name] = value;
