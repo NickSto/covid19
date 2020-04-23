@@ -3,7 +3,6 @@ import * as Loader from './loader.js?via=js';
 import * as Utils from './utils.js?via=js';
 import * as UI from './ui.js?via=js';
 
-const SMOOTHING_WINDOW = 3; // days
 const COLORS = Plotly.d3.scale.category10();
 const PLOT_LAYOUT = {
   margin: {t:0, b:0, l:0, r:0},
@@ -16,10 +15,7 @@ const PLOT_LAYOUT = {
 export function plotPlaces(data, placeSpecs) {
   let plotData = [];
   let options = UI.getOptions();
-  let smooth = true;
-  if (options.totals) {
-    smooth = false;
-  }
+  let smooth = ! isNaN(options.smoothing);
 
   for (let [i, placeSpec] of placeSpecs.entries()) {
     try {
@@ -27,9 +23,13 @@ export function plotPlaces(data, placeSpecs) {
       placeData.marker = {color: COLORS(i)};
       plotData.push(placeData);
       if (smooth) {
-        plotData.push(smoothPlot(placeData, SMOOTHING_WINDOW));
+        try {
+          plotData.push(smoothPlot(placeData, options.smoothing));
+        } catch (error) {
+          console.error(error);
+        }
       }
-    } catch(error) {
+    } catch (error) {
       console.error(error);
     }
   }
@@ -39,7 +39,7 @@ export function plotPlaces(data, placeSpecs) {
   plotTitleElem.textContent = plotTitle;
   const plotNotesElem = document.getElementById('plot-notes');
   if (smooth) {
-    plotNotesElem.textContent = `Lines are running ${SMOOTHING_WINDOW} day averages.`;
+    plotNotesElem.textContent = `Lines are running ${options.smoothing} day averages.`;
     plotNotesElem.classList.remove('hidden');
   } else {
     plotNotesElem.classList.add('hidden');

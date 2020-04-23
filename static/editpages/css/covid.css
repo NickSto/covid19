@@ -96,6 +96,11 @@
   vertical-align: text-bottom;
 }
 
+.number-input {
+  width: 30px;
+  text-align: center;
+}
+
 #plot-notes {
   font-size: 125%;
 }

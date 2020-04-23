@@ -266,6 +266,14 @@ export function getOptions() {
       if (optionElem.checked) {
         options.dataType = optionElem.value;
       }
+    } else if (optionElem.type === 'text') {
+      let value = optionElem.value;
+      if (optionElem.dataset.type === 'integer') {
+        value = parseInt(value);
+      } else if (optionElem.dataset.type === 'float') {
+        value = parseFloat(value);
+      }
+      options[optionElem.name] = value;
     } else {
       options[optionElem.value] = optionElem.checked;
     }
