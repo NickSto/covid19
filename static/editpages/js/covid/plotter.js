@@ -1,7 +1,10 @@
 
 import * as Loader from './loader.js?via=js';
+import * as Utils from './utils.js?via=js';
 import * as UI from './ui.js?via=js';
 
+const SMOOTHING_WINDOW = 3; // days
+const COLORS = Plotly.d3.scale.category10();
 const PLOT_LAYOUT = {
   margin: {t:0, b:0, l:0, r:0},
   yaxis: {automargin: true},
@@ -12,13 +15,20 @@ const PLOT_LAYOUT = {
 
 export function plotPlaces(data, placeSpecs) {
   let plotData = [];
-
   let options = UI.getOptions();
+  let smooth = true;
+  if (options.totals) {
+    smooth = false;
+  }
 
-  for (let placeSpec of placeSpecs) {
+  for (let [i, placeSpec] of placeSpecs.entries()) {
     try {
       let placeData = getPlacePlotData(placeSpec, data, options);
+      placeData.marker = {color: COLORS(i)};
       plotData.push(placeData);
+      if (smooth) {
+        plotData.push(smoothPlot(placeData, SMOOTHING_WINDOW));
+      }
     } catch(error) {
       console.error(error);
     }
@@ -26,10 +36,16 @@ export function plotPlaces(data, placeSpecs) {
 
   const plotTitleElem = document.getElementById('plot-title');
   let plotTitle = getPlacesString(plotData.map(d => d.name))+' '+getPlotDescription(options);
-
   plotTitleElem.textContent = plotTitle;
+  const plotNotesElem = document.getElementById('plot-notes');
+  if (smooth) {
+    plotNotesElem.textContent = `Lines are running ${SMOOTHING_WINDOW} day averages.`;
+    plotNotesElem.classList.remove('hidden');
+  } else {
+    plotNotesElem.classList.add('hidden');
+  }
 
-  let layout = deepishCopy(PLOT_LAYOUT);
+  let layout = Utils.deepishCopy(PLOT_LAYOUT);
   if (options.rates) {
     layout.yaxis.tickformat = '%';
   } else if (options.dataType === 'mortality') {
@@ -39,13 +55,17 @@ export function plotPlaces(data, placeSpecs) {
     layout.yaxis.type = 'log';
   }
 
-  const plotContainer = document.getElementById('plot-container');
+  const plotContainer = document.getElementById('plot');
   Plotly.newPlot(plotContainer, plotData, layout);
 }
 
 function getPlacesString(displayNames) {
   let placesList = [];
+  let lastDisplayName = null;
   for (let displayName of displayNames) {
+    if (! displayName || displayName === lastDisplayName) {
+      continue;
+    }
     let primaryName = displayName.split(/ [+-] /)[0];
     let suffix = '';
     let hasPlus = displayName.includes(' + ');
@@ -58,6 +78,7 @@ function getPlacesString(displayNames) {
       suffix = '-';
     }
     placesList.push(primaryName+suffix);
+    lastDisplayName = displayName;
   }
   return placesList.join(', ');
 }
@@ -90,7 +111,12 @@ function getPlotDescription(options) {
 }
 
 function getPlacePlotData(placeSpec, data, options) {
-  let {includes:places, excludes:excludedPlaces} = placeSpec;
+  let [dates, yVals] = getPlaceNumbers(placeSpec.includes, placeSpec.excludes, data, options);
+  let displayName = concatDisplayName(placeSpec.includes, placeSpec.excludes);
+  return {name:displayName, x:dates, y:yVals, type:'scatter', mode:'markers'};
+}
+
+function getPlaceNumbers(places, excludedPlaces, data, options) {
   // Get the raw confirmed cases counts.
   let dates = data.dates;
   let placesData = getPlacesData(data, places)
@@ -111,8 +137,39 @@ function getPlacePlotData(placeSpec, data, options) {
     let population = getPopulation(places) - getPopulation(excludedPlaces);
     yVals = divideByPop(yVals, population);
   }
-  let displayName = concatDisplayName(places, excludedPlaces);
-  return {name:displayName, x:dates, y:yVals}
+  return [dates, yVals];
+}
+
+function smoothPlot(rawPlotData, windowSize) {
+  let smoothedPlotData = {};
+  Object.assign(smoothedPlotData, rawPlotData);
+  let averages = [];
+  let window = [];
+  for (let value of rawPlotData.y) {
+    window.push(value);
+    if (window.length < windowSize) {
+      continue;
+    } else if (window.length > windowSize) {
+      window.shift();
+    }
+    averages.push(Utils.average(window));
+  }
+  let leftTrim = Math.ceil((windowSize-1)/2);
+  let rightTrim = Math.floor((windowSize-1)/2);
+  let xVals = rawPlotData.x;
+  let smoothedX = xVals.slice(leftTrim, xVals.length-rightTrim);
+  let smoothedY = averages;
+  if (smoothedX.length !== smoothedY.length) {
+    throw (
+      `Ended up with mismatched X and Y arrays in smoothPlot() `+
+      `(${smoothedX.length} != ${smoothedY.length})`
+    );
+  }
+  smoothedPlotData.x = smoothedX;
+  smoothedPlotData.y = smoothedY;
+  smoothedPlotData.mode = 'line';
+  smoothedPlotData.showlegend = false;
+  return smoothedPlotData;
 }
 
 function getPlacesData(data, places) {
@@ -273,25 +330,4 @@ function concatDisplayName(includedPlaces, excludedPlaces) {
     displayName += ' - ' + excludedNames.join(' - ');
   }
   return displayName;
-}
-
-/* Warning: This is a very limited deep copy, basically only made for simple situations like objects
- * with only simple values or object values.
- * If a key exists in both `source` and `target`, it will replace the value in `target`.
- * This includes object values, meaning this will not do any smart things like keeping keys deep in
- * the target if they don't exist in the source.
- */
-function deepishCopy(source, target=null) {
-  if (target === null) {
-    target = {};
-  }
-  for (let key of Object.keys(source)) {
-    let value = source[key];
-    if (typeof value === 'object') {
-      target[key] = deepishCopy(value);
-    } else {
-      target[key] = value;
-    }
-  }
-  return target;
 }

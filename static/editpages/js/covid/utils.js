@@ -160,3 +160,32 @@ export function arraysEqual(arr1, arr2, cmp) {
   }
   return true;
 }
+
+/* Warning: This is a very limited deep copy, basically only made for simple situations like objects
+ * with only simple values or object values.
+ * If a key exists in both `source` and `target`, it will replace the value in `target`.
+ * This includes object values, meaning this will not do any smart things like keeping keys deep in
+ * the target if they don't exist in the source.
+ */
+export function deepishCopy(source, target=null) {
+  if (target === null) {
+    target = {};
+  }
+  for (let key of Object.keys(source)) {
+    let value = source[key];
+    if (typeof value === 'object') {
+      target[key] = deepishCopy(value);
+    } else {
+      target[key] = value;
+    }
+  }
+  return target;
+}
+
+export function average(values) {
+  if (values.length <= 0) {
+    throw `Cannot get average of empty array.`;
+  }
+  let sum = values.reduce((a,b) => a+b, 0);
+  return sum/values.length;
+}

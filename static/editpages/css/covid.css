@@ -96,8 +96,12 @@
   vertical-align: text-bottom;
 }
 
+#plot-notes {
+  font-size: 125%;
+}
+
 /* For tablets and larger, use a taller plot, but leave more margins on the sides. */
-#plot-container {
+#plot {
   width:  90%;
   height: 700px;
   margin-bottom: 50px;
@@ -105,10 +109,13 @@
 
 /* For phones, use a shorter plot, but take up more of the horizontal space. */
 @media (max-width: 760px) {
+  #plot-notes {
+    font-size: 100%;
+  }
   #plot-title {
     font-size: 175%;
   }
-  #plot-container {
+  #plot {
     width: 100%;
     height: 450px;
   }
