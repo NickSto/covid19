@@ -24,7 +24,7 @@ export function plotPlaces(data, placeSpecs) {
       plotData.push(placeData);
       if (smooth) {
         try {
-          plotData.push(smoothPlot(placeData, options.smoothing));
+          plotData.push(smoothPlot(placeData, options.smoothing, roundSmoothing(options)));
         } catch (error) {
           console.error(error);
         }
@@ -140,7 +140,15 @@ function getPlaceNumbers(places, excludedPlaces, data, options) {
   return [dates, yVals];
 }
 
-function smoothPlot(rawPlotData, windowSize) {
+function roundSmoothing(options) {
+  if (options.perCapita || options.rates) {
+    return false;
+  } else {
+    return true;
+  }
+}
+
+function smoothPlot(rawPlotData, windowSize, round) {
   let smoothedPlotData = {};
   Object.assign(smoothedPlotData, rawPlotData);
   let averages = [];
@@ -152,7 +160,11 @@ function smoothPlot(rawPlotData, windowSize) {
     } else if (window.length > windowSize) {
       window.shift();
     }
-    averages.push(Utils.average(window));
+    let average = Utils.average(window);
+    if (round) {
+      average = Math.round(average);
+    }
+    averages.push(average);
   }
   let leftTrim = Math.ceil((windowSize-1)/2);
   let rightTrim = Math.floor((windowSize-1)/2);
