@@ -56,16 +56,16 @@
               <span>
                 What data?
               </span>
-              <span class="data-type-container">
-                <input class="option" type="radio" name="data-types" value="cases" checked>
+              <span class="inline-option-container">
+                <input class="option" type="radio" name="dataType" data-action="storeString" value="cases" checked>
                 <span class="option-label">Infections</span>
               </span>
-              <span class="data-type-container">
-                <input class="option" type="radio" name="data-types" value="deaths">
+              <span class="inline-option-container">
+                <input class="option" type="radio" name="dataType" data-action="storeString" value="deaths">
                 <span class="option-label">Deaths</span>
               </span>
-              <span class="data-type-container">
-                <input class="option" type="radio" name="data-types" value="mortality">
+              <span class="inline-option-container">
+                <input class="option" type="radio" name="dataType" data-action="storeString" value="mortality">
                 <span class="option-label">Mortality rate</span>
               </span>
             </p>
@@ -100,6 +100,19 @@
                 <span>day average</span>
               </p>
             </div>
+          </div>
+          <div id="plot-types">
+            <p>Alternative plots:</p>
+            <p>
+              <span class="inline-option-container">
+                <input class="option" type="radio" name="plotType" data-action="storeString" value="plotPlaces" checked>
+                <span class="option-label">Region case/deaths</span>
+              </span>
+              <span class="inline-option-container">
+                <input class="option" type="radio" name="plotType" data-action="storeString" value="dcHospitals">
+                <span class="option-label">DC hospitalizations</span>
+              </span>
+            </p>
           </div>
           <button id="plot-btn" class="btn btn-default" type="submit">
             Make Plot

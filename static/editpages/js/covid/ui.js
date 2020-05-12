@@ -1,6 +1,7 @@
 
 import * as Loader from './loader.js?via=js';
 import * as Plotter from './plotter.js?via=js';
+import * as DCPlots from './dcplots.js?via=js';
 
 export function wireUI(data, defaultPlaces) {
   const addPlaceElem = document.getElementById('add-place');
@@ -9,15 +10,22 @@ export function wireUI(data, defaultPlaces) {
     addPlaceInput(null, place);
   }
   const plotBtnElem = document.getElementById('plot-btn');
-  plotBtnElem.addEventListener('click', event => {event.preventDefault(); plotEnteredPlaces(data);});
+  plotBtnElem.addEventListener('click', event => {event.preventDefault(); makePlots(data);});
   const optionsElem = document.getElementById('options');
   optionsElem.addEventListener('click', setValidOptions);
   setValidOptions();
 }
 
-export function plotEnteredPlaces(data) {
-  let placeSpecs = getEnteredPlaces();
-  Plotter.plotPlaces(data, placeSpecs);
+export function makePlots(data) {
+  let options = getOptions();
+  if (options.plotType === 'plotPlaces') {
+    let placeSpecs = getEnteredPlaces();
+    Plotter.plotPlaces(data, placeSpecs);
+  } else if (options.plotType === 'dcHospitals') {
+    DCPlots.loadAndPlot();
+  } else {
+    throw `Invalid plot type ${options.plotType}.`;
+  }
 }
 
 function addPlaceInput(event, placeStr='') {
@@ -262,9 +270,9 @@ export function getOptions() {
   let options = {};
   const optionElems = document.getElementsByClassName('option');
   for (let optionElem of optionElems) {
-    if (optionElem.name == 'data-types') {
+    if (optionElem.dataset.action == 'storeString') {
       if (optionElem.checked) {
-        options.dataType = optionElem.value;
+        options[optionElem.name] = optionElem.value;
       }
     } else if (optionElem.type === 'text') {
       options[optionElem.name] = optionElem.value;

@@ -15,7 +15,7 @@ function init() {
 
 function loadDataAndWireUI() {
   let data = Loader.makeEmptyData();
-  Loader.loadData(data, () => UI.plotEnteredPlaces(data));
+  Loader.loadData(data, () => UI.makePlots(data));
   UI.wireUI(data, DEFAULT_PLACES);
 }
 
